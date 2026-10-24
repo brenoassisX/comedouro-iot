@@ -1,0 +1,5 @@
+rodar o servidor
+php -S localhost:8000 -t public public/index.php
+
+link do localhost
+http://localhost:8000
