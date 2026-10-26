@@ -8,6 +8,10 @@ use App\Core\Database;
 /**
  * Histórico de alimentação (tabela historico). Também é a "fila" de pedidos para o ESP32:
  *   pendente -> enviado (o ESP32 recebeu) -> concluido (o ESP32 confirmou)
+ *
+ * LIBERADA x CONSUMIDA (veja database/migracoes/09_sensores_e_consumo.sql):
+ *   liberado_g  = o que a balança mediu que caiu na tigela (se não houver balança, vale porcao_g)
+ *   consumido_g = o que o pet comeu (só existe quando a balança mediu)
  */
 class Historico
 {
@@ -35,16 +39,26 @@ class Historico
     }
 
     /**
-     * Refeições servidas de um pet, agrupadas por dia (usado nos Relatórios).
+     * Refeições de um pet agrupadas por dia (Relatórios).
      * Conta o que o ESP32 já recebeu ('enviado') ou confirmou ('concluido').
-     * A data considerada é a da conclusão; se não houve confirmação, a do envio.
+     * A data considerada é a da conclusão; sem confirmação, a do envio.
      *
-     * @return array<string, array{refeicoes:int, gramas:int}>  chave = 'Y-m-d'
+     * Por dia devolve:
+     *   refeicoes -> quantidade de refeições
+     *   liberado  -> gramas liberadas (medidas pela balança; sem medida, a porção pedida)
+     *   consumido -> gramas consumidas (soma só das refeições que a balança mediu)
+     *   medidas   -> quantas refeições têm consumo medido (0 = sem dados de consumo)
+     *
+     * @return array<string, array{refeicoes:int, liberado:float, consumido:float, medidas:int}>  chave = 'Y-m-d'
      */
     public static function resumoPorDia(int $petId, string $inicio, string $fimExclusivo): array
     {
         $stmt = Database::getConnection()->prepare(
-            "SELECT DATE(COALESCE(concluido_em, enviado_em)) AS dia, COUNT(*) AS refeicoes, SUM(porcao_g) AS gramas
+            "SELECT DATE(COALESCE(concluido_em, enviado_em)) AS dia,
+                    COUNT(*) AS refeicoes,
+                    SUM(COALESCE(liberado_g, porcao_g)) AS liberado,
+                    SUM(COALESCE(consumido_g, 0)) AS consumido,
+                    COUNT(consumido_g) AS medidas
                FROM historico
               WHERE pet_id = :pet AND status IN ('enviado', 'concluido')
                 AND COALESCE(concluido_em, enviado_em) >= :ini
@@ -55,7 +69,12 @@ class Historico
 
         $resumo = [];
         foreach ($stmt->fetchAll() as $linha) {
-            $resumo[(string) $linha['dia']] = ['refeicoes' => (int) $linha['refeicoes'], 'gramas' => (int) $linha['gramas']];
+            $resumo[(string) $linha['dia']] = [
+                'refeicoes' => (int) $linha['refeicoes'],
+                'liberado'  => (float) $linha['liberado'],
+                'consumido' => (float) $linha['consumido'],
+                'medidas'   => (int) $linha['medidas'],
+            ];
         }
 
         return $resumo;

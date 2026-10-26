@@ -153,7 +153,11 @@ class DispositivoController
         $modo = 'editar';
         $erro = '';
         $id   = (int) $d['id'];
-        $old  = ['nome' => $d['nome'], 'codigo_mac_esp' => $d['codigo_mac_esp'], 'pet_id' => (string) ($d['pet_id'] ?? '')];
+        $old  = [
+            'nome' => $d['nome'], 'codigo_mac_esp' => $d['codigo_mac_esp'], 'pet_id' => (string) ($d['pet_id'] ?? ''),
+            'cheio_cm' => rtrim(rtrim((string) $d['reservatorio_cheio_cm'], '0'), '.'),
+            'vazio_cm' => rtrim(rtrim((string) $d['reservatorio_vazio_cm'], '0'), '.'),
+        ];
         $pets = $this->carregarPets($id, $erro);
         require BASE_PATH . '/app/Views/dispositivo_form.php';
     }
@@ -241,18 +245,27 @@ class DispositivoController
         $nome  = trim((string) ($_POST['nome'] ?? ''));
         $mac   = strtoupper(str_replace('-', ':', trim((string) ($_POST['codigo_mac_esp'] ?? ''))));
         $petId = (int) ($_POST['pet_id'] ?? 0);
+        $cheio = str_replace(',', '.', trim((string) ($_POST['cheio_cm'] ?? '5')));
+        $vazio = str_replace(',', '.', trim((string) ($_POST['vazio_cm'] ?? '25')));
         $erro  = '';
 
         if ($nome === '' || strlen($nome) > 80) {
             $erro = 'Informe o nome do comedouro (até 80 caracteres).';
         } elseif (!preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/', $mac)) {
             $erro = 'Informe o código MAC no formato AA:BB:CC:DD:EE:FF.';
+        } elseif (!is_numeric($cheio) || !is_numeric($vazio) || (float) $cheio < 1 || (float) $vazio > 200 || (float) $vazio <= (float) $cheio) {
+            // Calibração do ultrassônico: vazio fica MAIS LONGE do sensor que cheio (distância maior)
+            $erro = 'Calibração do sensor: informe distâncias entre 1 e 200 cm, com o reservatório vazio mais longe que o cheio.';
         }
 
         return [
             $erro,
-            ['nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => $petId > 0 ? $petId : null],
-            ['nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => (string) $petId],
+            [
+                'nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => $petId > 0 ? $petId : null,
+                'cheio_cm' => is_numeric($cheio) ? (float) $cheio : 5.0,
+                'vazio_cm' => is_numeric($vazio) ? (float) $vazio : 25.0,
+            ],
+            ['nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => (string) $petId, 'cheio_cm' => $cheio, 'vazio_cm' => $vazio],
         ];
     }
 

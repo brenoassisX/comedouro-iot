@@ -63,6 +63,29 @@ $voltar  = $modo === 'editar' ? '/dispositivos?id=' . (int) $id : '/dispositivos
                     </div>
                     <p class="ajuda">Cada comedouro atende um único pet, e cada pet só pode estar em um comedouro.</p>
                 </div>
+
+                <div class="c12">
+                    <h3 style="font-size: .95rem; font-weight: 700">Calibração do sensor de nível (ultrassônico)</h3>
+                    <p class="ajuda">Meça a distância do sensor até a ração. O sistema converte essa distância em porcentagem.</p>
+                </div>
+
+                <div class="c6">
+                    <label for="cheio_cm">Distância com o reservatório cheio (cm)</label>
+                    <div class="campo">
+                        <svg class="icone" aria-hidden="true"><use href="#i-regua"/></svg>
+                        <input type="number" id="cheio_cm" name="cheio_cm" min="1" max="200" step="0.1" inputmode="decimal" required value="<?= $e($old['cheio_cm'] ?? '5') ?>">
+                    </div>
+                    <p class="ajuda">100% — ração quase encostando no sensor.</p>
+                </div>
+
+                <div class="c6">
+                    <label for="vazio_cm">Distância com o reservatório vazio (cm)</label>
+                    <div class="campo">
+                        <svg class="icone" aria-hidden="true"><use href="#i-regua"/></svg>
+                        <input type="number" id="vazio_cm" name="vazio_cm" min="1" max="200" step="0.1" inputmode="decimal" required value="<?= $e($old['vazio_cm'] ?? '25') ?>">
+                    </div>
+                    <p class="ajuda">0% — fundo do reservatório.</p>
+                </div>
             </div>
 
             <div class="acoes-form" style="margin-top: 20px">

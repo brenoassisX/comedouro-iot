@@ -22,6 +22,8 @@ use RuntimeException;
  *   de=AAAA-MM-DD&ate=AAAA-MM-DD (personalizado, no máximo 92 dias)
  *
  * O QUE É CONTADO: refeições em historico com status 'enviado' ou 'concluido' (o ESP32 já recebeu).
+ * LIBERADA = o que caiu na tigela (balança); CONSUMIDA = o que o pet comeu. Sem balança, só aparece a liberada
+ * (porção pedida) e o consumo mostra "—".
  *
  * POSSÍVEIS SITUAÇÕES:
  *  - Gráfico vazio / "Nenhuma refeição" -> não há registros do pet no período (ou o pet_id do
@@ -129,26 +131,33 @@ class RelatorioController
         }
 
         // ---- Um item por dia do período (dias sem refeição = 0) ----
-        $dias   = [];
-        $total  = 0;
-        $gramas = 0;
-        $curto  = $inicio->diff($fim)->days <= 6;   // até 7 dias: rótulo "Seg", "Ter"...; senão o número do dia
+        $dias      = [];
+        $total     = 0;
+        $liberado  = 0.0;   // gramas que caíram na tigela (balança) ou, sem balança, a porção pedida
+        $consumido = 0.0;   // gramas que o pet comeu (só onde a balança mediu)
+        $medidas   = 0;     // quantas refeições têm consumo medido
+        $curto     = $inicio->diff($fim)->days <= 6;   // até 7 dias: rótulo "Seg", "Ter"...; senão o número do dia
 
         for ($d = $inicio; $d <= $fim; $d = $d->modify('+1 day')) {
-            $n  = $resumo[$d->format('Y-m-d')]['refeicoes'] ?? 0;
-            $g  = $resumo[$d->format('Y-m-d')]['gramas'] ?? 0;
-            $total  += $n;
-            $gramas += $g;
+            $r = $resumo[$d->format('Y-m-d')] ?? ['refeicoes' => 0, 'liberado' => 0.0, 'consumido' => 0.0, 'medidas' => 0];
+            $total     += $r['refeicoes'];
+            $liberado  += $r['liberado'];
+            $consumido += $r['consumido'];
+            $medidas   += $r['medidas'];
             $dias[] = [
                 'rotulo'    => $curto ? self::DIAS_SEMANA[(int) $d->format('N')] : $d->format('d'),
                 'data'      => $d->format('d/m/Y'),
-                'refeicoes' => $n,
-                'gramas'    => $g,
+                'refeicoes' => $r['refeicoes'],
+                'liberado'  => $r['liberado'],
+                'consumido' => $r['consumido'],
+                'medidas'   => $r['medidas'],
             ];
         }
 
-        $media = $total > 0 ? (int) round($gramas / $total) : 0;
-        $kg    = $gramas / 1000;
+        $media       = $total > 0 ? (int) round($liberado / $total) : 0;   // média liberada por refeição
+        $kgLiberado  = $liberado / 1000;
+        $kgConsumido = $consumido / 1000;
+        $temConsumo  = $medidas > 0;   // false = ainda sem dados da balança
 
         // ---- Escala do eixo vertical do gráfico ----
         $maior = max(array_column($dias, 'refeicoes') ?: [0]);
@@ -177,7 +186,8 @@ class RelatorioController
             'erro' => $erro, 'pets' => $pets, 'petAtual' => $petAtual, 'petId' => $petId,
             'periodo' => $periodo, 'inicio' => $inicio, 'fim' => $fim,
             'rotuloPeriodo' => $inicio->format('d/m/Y') . ' – ' . $fim->format('d/m/Y'),
-            'dias' => $dias, 'total' => $total, 'gramas' => $gramas, 'kg' => $kg, 'media' => $media,
+            'dias' => $dias, 'total' => $total, 'kgLiberado' => $kgLiberado, 'kgConsumido' => $kgConsumido,
+            'temConsumo' => $temConsumo, 'media' => $media,
             'topo' => $topo, 'ticks' => $ticks, 'consulta' => $consulta,
         ];
     }

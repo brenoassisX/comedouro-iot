@@ -97,27 +97,48 @@ a { color: inherit; }
 .card-pet:focus-visible, .card-pequeno:focus-visible, .acao-grande:focus-visible, .chip:focus-visible,
 .abas a:focus-visible, .btn-foto:focus-within { outline: 3px solid var(--escuro); outline-offset: 2px; }
 
-/* ---------- Início ---------- */
-.usuario { align-self: flex-end; display: flex; align-items: center; gap: 10px; font-size: clamp(.8rem, .9vw, 1rem); font-weight: 500; }
-.avatar { width: clamp(28px, 2vw, 40px); height: clamp(28px, 2vw, 40px); display: grid; place-items: center; background: var(--wire); border-radius: 50%; }
-.avatar svg { width: 55%; height: 55%; }
-.saudacao h1 { margin-bottom: 6px; font-size: clamp(1.9rem, 4vw, 3.6rem); font-weight: 800; line-height: 1.1; }
-.saudacao p { font-size: clamp(.82rem, 1vw, 1.15rem); }
-.linha-grande { display: grid; grid-template-columns: repeat(2, minmax(0, 40%)); justify-content: space-between; margin-top: 10px; }
-.card-grande { min-height: clamp(180px, 18vw, 340px); display: flex; flex-direction: column; justify-content: space-between; }
-.wire { background: var(--wire); border-radius: 4px; }
-.wire-bloco { width: 28%; height: clamp(34px, 3.4vw, 64px); }
-.wire-barra { width: 100%; height: clamp(24px, 2.4vw, 44px); }
-.linha-pequena { display: grid; grid-template-columns: repeat(3, minmax(0, 23%)); justify-content: space-between; margin-top: auto; padding-top: clamp(14px, 2vw, 34px); }
-.card-pequeno {
-    min-height: clamp(84px, 8.5vw, 160px); padding: 10px; text-decoration: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: clamp(6px, .8vw, 14px);
-    font-size: clamp(.72rem, .9vw, 1.05rem); font-weight: 600; text-align: center; transition: box-shadow .2s ease;
+/* ---------- Início (dashboard) ---------- */
+.dash-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.saudacao h1 { margin-bottom: 6px; font-size: clamp(1.9rem, 3.6vw, 3.4rem); font-weight: 700; line-height: 1.1; }
+.saudacao p { font-size: clamp(.82rem, 1vw, 1.1rem); }
+.sino { flex: none; display: grid; place-items: center; width: 40px; height: 40px; color: var(--escuro); border-radius: 50%; transition: background-color .2s ease; }
+.sino:hover { background: rgba(30, 30, 36, .08); }
+.sino:focus-visible, .seta-pet:focus-visible, .btn-outline:focus-visible { outline: 3px solid var(--escuro); outline-offset: 2px; }
+.sino svg { width: 24px; height: 24px; }
+
+.dash-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(10px, 1.4vw, 18px); }
+.dash-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(10px, 1.4vw, 18px); }
+.dash-pet { position: relative; display: flex; align-items: center; gap: clamp(12px, 1.6vw, 22px); }
+.dash-pet .foto-box { width: clamp(84px, 10vw, 150px); height: clamp(84px, 10vw, 150px); border-radius: 18px; }
+.dash-pet h2 { font-size: clamp(1.2rem, 1.9vw, 1.8rem); font-weight: 500; line-height: 1.15; }
+.dash-pet .raca { margin: 2px 0 4px; font-size: .78rem; }
+.mini-meta { font-size: .78rem; color: var(--suave); }
+.btn-outline {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: clamp(120px, 12vw, 170px); height: 38px; padding: 0 18px; margin-top: 12px;
+    font: 700 .82rem var(--f); color: var(--terracota); text-decoration: none;
+    background: var(--branco); border: 1.5px solid var(--terracota); border-radius: 10px; transition: background-color .2s ease;
 }
-.card-pequeno:hover { box-shadow: 0 8px 18px -12px rgba(30, 30, 36, .55); }
-.card-pequeno svg { width: clamp(22px, 2.2vw, 40px); height: clamp(22px, 2.2vw, 40px); color: var(--terracota); }
-.icone-vazio { width: clamp(22px, 2.2vw, 40px); height: clamp(22px, 2.2vw, 40px); }
-.card-vazio:hover { box-shadow: none; }
+.btn-outline:hover { background: #FBEFE4; }
+
+.pet-nav { position: absolute; top: 10px; right: 12px; display: flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 700; color: var(--suave); }
+.seta-pet { display: grid; place-items: center; width: 28px; height: 28px; color: var(--terracota); text-decoration: none; background: #FBEFE4; border: 1px solid #E8CDBD; border-radius: 50%; }
+.seta-pet:hover { background: #F6DCCB; }
+.seta-pet svg { width: 16px; height: 16px; }
+
+.dash-status h2 { margin-bottom: 8px; font-size: clamp(1.1rem, 1.7vw, 1.6rem); font-weight: 500; }
+.sub-linha { margin-top: 6px; font-size: .78rem; color: #55555C; }
+.sem-info { font-size: .85rem; color: var(--suave); }
+
+.mini-card { position: relative; display: flex; flex-direction: column; gap: 4px; min-height: clamp(110px, 10vw, 150px); }
+.mini-card h3 { font-size: clamp(.8rem, 1vw, 1rem); font-weight: 700; }
+.mini-valor { margin-top: auto; font-size: clamp(1.5rem, 2.4vw, 2.3rem); font-weight: 800; letter-spacing: -.01em; line-height: 1.1; }
+.mini-valor small { margin-left: 4px; font-size: .45em; font-weight: 600; }
+.mini-sub { font-size: .78rem; color: var(--suave); }
+.mini-icone { position: absolute; right: clamp(12px, 1.4vw, 22px); top: 50%; width: clamp(28px, 3vw, 44px); height: clamp(28px, 3vw, 44px); color: var(--terracota); transform: translateY(-25%); }
+.mini-card.destaque { color: #fff; background: var(--terracota); border-color: var(--terracota); }
+.mini-card.destaque .mini-sub { color: rgba(255, 255, 255, .9); }
+.mini-card.destaque .mini-icone { color: #fff; }
 
 /* ---------- Formulários (pets, comedouro, horário) ---------- */
 .foto-box { width: 112px; height: 112px; flex: none; overflow: hidden; display: grid; place-items: center; background: var(--interno); color: #CBBDA8; border: 1px solid rgba(30, 30, 36, .3); border-radius: 14px; }
@@ -293,11 +314,11 @@ label { display: block; margin-bottom: 6px; font-size: .68rem; font-weight: 800;
 
 /* ---------- Responsivo ---------- */
 @media (max-width: 900px) {
-    .linha-grande { grid-template-columns: 1fr; gap: 16px; }
-    .linha-pequena { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .dash-2, .dash-3 { grid-template-columns: 1fr; }
+    .mini-card { min-height: 100px; }
     .disp-linha, .linha-pet { grid-template-columns: 1fr; }
     .rel-corpo { grid-template-columns: 1fr; }
-    .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
     .nutri-grade { grid-template-columns: 1fr; }

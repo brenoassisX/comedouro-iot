@@ -67,4 +67,41 @@ class Agendamento
         $stmt = Database::getConnection()->prepare('DELETE FROM agendamentos WHERE id = :id');
         $stmt->execute([':id' => $id]);
     }
+
+    /**
+     * Próxima alimentação programada (usada no Início). Considera os horários de hoje que ainda
+     * não passaram; se não sobrou nenhum, devolve o primeiro de amanhã (amanha = true).
+     * Os horários são tratados como diários. Devolve null se não há nenhum horário.
+     *
+     * @return array{horario:string, gramas:int, amanha:bool}|null
+     */
+    public static function proximo(int $dispositivoId): ?array
+    {
+        $pdo   = Database::getConnection();
+        $stmt  = $pdo->prepare(
+            'SELECT horario, porcao_g FROM agendamentos
+              WHERE dispositivo_id = :d AND ativo = 1 AND horario > :agora
+              ORDER BY horario LIMIT 1'
+        );
+        $stmt->execute([':d' => $dispositivoId, ':agora' => date('H:i:s')]);
+        $linha = $stmt->fetch();
+        $amanha = false;
+
+        if ($linha === false) {
+            $stmt = $pdo->prepare(
+                'SELECT horario, porcao_g FROM agendamentos
+                  WHERE dispositivo_id = :d AND ativo = 1
+                  ORDER BY horario LIMIT 1'
+            );
+            $stmt->execute([':d' => $dispositivoId]);
+            $linha  = $stmt->fetch();
+            $amanha = true;
+        }
+
+        if ($linha === false) {
+            return null;
+        }
+
+        return ['horario' => substr((string) $linha['horario'], 0, 5), 'gramas' => (int) $linha['porcao_g'], 'amanha' => $amanha];
+    }
 }

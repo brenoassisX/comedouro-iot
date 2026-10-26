@@ -22,7 +22,7 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
         header { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 2px solid #C4694F; }
         header img { width: 56px; }
         h1 { margin: 0; font-size: 1.6rem; } header p { margin: 2px 0 0; color: #55555C; font-size: .9rem; }
-        .resumo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0; }
+        .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
         .resumo div { padding: 14px; text-align: center; background: #F4EADE; border-radius: 12px; }
         .resumo small { display: block; margin-bottom: 6px; font-size: .78rem; font-weight: 700; }
         .resumo strong { font-size: 1.4rem; font-weight: 600; }
@@ -58,18 +58,20 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
     <?php else: ?>
         <section class="resumo">
             <div><small>Total de refeições</small><strong><?= (int) $total ?></strong></div>
-            <div><small>Ração consumida</small><strong><?= $e($fmtKg($kg)) ?> kg</strong></div>
-            <div><small>Média por refeição</small><strong><?= (int) $media ?> g</strong></div>
+            <div><small>Ração liberada</small><strong><?= $e($fmtKg($kgLiberado)) ?> kg</strong></div>
+            <div><small>Ração consumida</small><strong><?= $temConsumo ? $e($fmtKg($kgConsumido)) . ' kg' : '—' ?></strong></div>
+            <div><small>Média liberada por refeição</small><strong><?= (int) $media ?> g</strong></div>
         </section>
 
         <table>
-            <thead><tr><th>Data</th><th class="n">Refeições</th><th class="n">Ração (g)</th><th>Frequência</th></tr></thead>
+            <thead><tr><th>Data</th><th class="n">Refeições</th><th class="n">Liberada (g)</th><th class="n">Consumida (g)</th><th>Frequência</th></tr></thead>
             <tbody>
                 <?php foreach ($dias as $d): ?>
                     <tr>
                         <td><?= $e($d['data']) ?></td>
                         <td class="n"><?= (int) $d['refeicoes'] ?></td>
-                        <td class="n"><?= (int) $d['gramas'] ?></td>
+                        <td class="n"><?= (int) round($d['liberado']) ?></td>
+                        <td class="n"><?= $d['medidas'] > 0 ? (int) round($d['consumido']) : '—' ?></td>
                         <td><span class="barra" style="width: <?= round($d['refeicoes'] / $topo * 160) ?>px"></span></td>
                     </tr>
                 <?php endforeach; ?>

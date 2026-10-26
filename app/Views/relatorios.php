@@ -3,7 +3,7 @@ declare(strict_types=1);
 /**
  * View: app/Views/relatorios.php
  * Variáveis do RelatorioController (via extract): $erro, $pets, $petAtual, $petId, $periodo, $inicio, $fim,
- *   $rotuloPeriodo, $dias, $total, $gramas, $kg, $media, $topo, $ticks, $consulta
+ *   $rotuloPeriodo, $dias, $total, $kgLiberado, $kgConsumido, $temConsumo, $media, $topo, $ticks, $consulta
  */
 $titulo    = 'Relatórios';
 $menuAtivo = 'relatorios';
@@ -69,7 +69,10 @@ $aba    = static fn (string $p): string => '/relatorios?' . http_build_query(['p
             <div class="rel-corpo">
                 <div class="stats">
                     <div class="stat"><small>Total de refeições</small><strong><?= (int) $total ?></strong></div>
-                    <div class="stat"><small>Ração consumida</small><strong><?= $e($fmtKg($kg)) ?> kg</strong></div>
+                    <div class="stat"><small>Ração liberada</small><strong><?= $e($fmtKg($kgLiberado)) ?> kg</strong></div>
+                    <div class="stat" title="<?= $temConsumo ? 'Medido pela balança da tigela' : 'Sem leitura da balança neste período' ?>">
+                        <small>Ração consumida</small><strong><?= $temConsumo ? $e($fmtKg($kgConsumido)) . ' kg' : '—' ?></strong>
+                    </div>
                     <div class="stat"><small>Média/refeição</small><strong><?= (int) $media ?> g</strong></div>
                 </div>
 

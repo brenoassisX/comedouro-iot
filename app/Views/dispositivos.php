@@ -50,6 +50,7 @@ require __DIR__ . '/partials/app_head.php';
                         <div class="disp-meta">
                             <span><?= $e($status['codigo']) ?> · <?= $e($atual['codigo_mac_esp']) ?></span>
                             <span>Pet: <?= $atual['pet_nome'] !== null ? $e($atual['pet_nome']) : 'sem pet vinculado' ?></span>
+                            <?php if ($status['peso'] !== null): ?><span>Tigela: <?= (int) round($status['peso']) ?> g</span><?php endif; ?>
                             <span>Atualizado: <?= $e($status['atualizado']) ?></span>
                         </div>
                     </div>
