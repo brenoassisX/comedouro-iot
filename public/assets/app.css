@@ -101,7 +101,7 @@ a { color: inherit; }
 .dash-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .saudacao h1 { margin-bottom: 6px; font-size: clamp(1.9rem, 3.6vw, 3.4rem); font-weight: 700; line-height: 1.1; }
 .saudacao p { font-size: clamp(.82rem, 1vw, 1.1rem); }
-.sino { flex: none; display: grid; place-items: center; width: 40px; height: 40px; color: var(--escuro); border-radius: 50%; transition: background-color .2s ease; }
+.sino { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; color: var(--escuro); border-radius: 50%; transition: background-color .2s ease; }
 .sino:hover { background: rgba(30, 30, 36, .08); }
 .sino:focus-visible, .seta-pet:focus-visible, .btn-outline:focus-visible { outline: 3px solid var(--escuro); outline-offset: 2px; }
 .sino svg { width: 24px; height: 24px; }
@@ -238,6 +238,48 @@ label { display: block; margin-bottom: 6px; font-size: .68rem; font-weight: 800;
 .manual h3 { font-size: .95rem; font-weight: 500; }
 .manual p { margin: 6px 0 4px; font-size: .78rem; color: var(--suave); }
 .vazio-lista { padding: 22px 8px; text-align: center; color: var(--suave); font-size: .9rem; }
+
+/* ---------- Alimentação manual: última liberação ---------- */
+.manual-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.manual-campo { width: clamp(120px, 14vw, 170px); }
+.manual-campo label { margin-bottom: 6px; font-size: .74rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.manual-form .btn { margin: 0; }
+.ultima { margin-top: 18px; padding: 14px; background: var(--bege); border-radius: 12px; }
+.ultima-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; font-size: .85rem; }
+.ultima-cab .num { font-weight: 500; color: var(--suave); }
+.ultima-status { padding: 4px 12px; font-size: .72rem; font-weight: 700; color: #7A4A12; background: #F8E6C8; border-radius: 999px; }
+.ultima-status.ok { color: #1F4A37; background: #DCEBE3; }
+.ultima-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ultima-grade div { padding: 10px; text-align: center; background: var(--branco); border-radius: 10px; }
+.ultima-grade small { display: block; margin-bottom: 4px; font-size: .68rem; color: var(--suave); }
+.ultima-grade strong { font-size: 1rem; }
+@media (max-width: 600px) { .ultima-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Notificações ---------- */
+.sino-badge { position: absolute; top: 0; right: 0; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; font-size: .65rem; font-weight: 800; color: #fff; background: #E5504F; border-radius: 999px; }
+.cab-icone { width: 30px; height: 30px; flex: none; }
+.lista-notif { display: flex; flex-direction: column; gap: 10px; }
+.notif {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: flex-start; gap: 14px;
+    padding: 14px 18px; color: inherit; text-decoration: none;
+    background: var(--branco); border: 1px solid var(--borda); border-radius: 12px;
+}
+a.notif { transition: box-shadow .2s ease; }
+a.notif:hover { box-shadow: 0 6px 16px -10px rgba(30, 30, 36, .5); }
+a.notif:focus-visible { outline: 3px solid var(--escuro); outline-offset: 2px; }
+.notif.nova { border-left: 4px solid var(--terracota); }
+.notif-icone { width: 26px; height: 26px; display: grid; place-items: center; color: #fff; border-radius: 50%; margin-top: 2px; }
+.notif-icone svg { width: 15px; height: 15px; }
+.notif-icone.vermelho { background: #E5504F; }
+.notif-icone.verde { background: #3DB67C; }
+.notif-icone.roxo { background: #5B4FD1; }
+.notif-icone.laranja { background: #E8933C; }
+.notif-icone.terracota { background: var(--terracota); }
+.notif-texto { display: flex; flex-direction: column; gap: 3px; }
+.notif-texto strong { font-size: clamp(1rem, 1.3vw, 1.2rem); font-weight: 700; }
+.notif-texto span { font-size: .8rem; line-height: 1.5; color: #55555C; }
+.notif time { font-size: .7rem; color: var(--suave); white-space: nowrap; }
+@media (max-width: 600px) { .notif { grid-template-columns: auto minmax(0, 1fr); } .notif time { grid-column: 2; } }
 
 /* ---------- Relatórios ---------- */
 .abas { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; background: var(--branco); border-radius: 12px; }

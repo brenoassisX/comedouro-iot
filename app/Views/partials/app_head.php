@@ -9,7 +9,9 @@
  *   $menuAtivo  ('inicio'|'pets'|'dispositivos'|'alimentacao'|'relatorios'|'config')
  *   $extraHead  (opcional) HTML extra para o <head> (ex.: recarregar a página sozinha)
  */
-$e         = $e ?? static fn ($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+// SEMPRE redefine $e: nos controllers, $e também é usado nos blocos catch (PDOException $e) e,
+// se já existisse, o $e ?? ... manteria a exceção em vez da função e quebraria a página.
+$e         = static fn ($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $titulo    = $titulo ?? 'PetFeeder';
 $menuAtivo = $menuAtivo ?? '';
 $extraHead = $extraHead ?? '';
@@ -69,6 +71,9 @@ $menu = [
         <symbol id="i-raio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
         <symbol id="i-chevron-esq" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></symbol>
         <symbol id="i-chevron-dir" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+        <symbol id="i-alerta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17.4h.01"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+        <symbol id="i-wifi-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 4.2-2.6M22 8.8a15 15 0 0 0-9-3.7M5 12.5a10 10 0 0 1 5-2.7M19 12.5a10 10 0 0 0-2.2-1.8M8.5 16.2a5 5 0 0 1 7 0M12 20h.01M3 3l18 18"/></symbol>
     </defs>
 </svg>
 

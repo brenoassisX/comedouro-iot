@@ -8,6 +8,7 @@ use App\Controllers\DispositivoController;
 use App\Controllers\AlimentacaoController;
 use App\Controllers\RelatorioController;
 use App\Controllers\ConfiguracaoController;
+use App\Controllers\NotificacaoController;
 use App\Controllers\UsuarioController;
 
 /**
@@ -89,6 +90,8 @@ $rotas = [
         // Relatorios
         '/relatorios'           => [RelatorioController::class, 'index'],
         '/relatorios/pdf'       => [RelatorioController::class, 'pdf'],
+        // Notificacoes (sininho do Inicio)
+        '/notificacoes'         => [NotificacaoController::class, 'index'],
         // Configuracao
         '/configuracao'         => [ConfiguracaoController::class, 'index'],
         '/configuracao/perfil'  => [ConfiguracaoController::class, 'perfil'],
@@ -108,6 +111,7 @@ $rotas = [
         '/alimentacao/liberar'    => [AlimentacaoController::class, 'liberar'],
         '/configuracao/perfil'    => [ConfiguracaoController::class, 'salvarPerfil'],
         '/configuracao/preferencias' => [ConfiguracaoController::class, 'salvarPreferencias'],
+        '/notificacoes/limpar'    => [NotificacaoController::class, 'limpar'],
         '/api/sincronizar' => [ApiController::class, 'sincronizar'], // ESP32 (JSON)
     ],
 ];

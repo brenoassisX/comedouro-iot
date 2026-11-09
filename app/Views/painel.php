@@ -2,7 +2,7 @@
 declare(strict_types=1);
 /**
  * View: app/Views/painel.php  (Início / dashboard)
- * Variáveis do PainelController: $primeiroNome, $erro, $pets, $pet (array|null), $posicao, $totalPets,
+ * Variáveis do PainelController: $primeiroNome, $naoLidas, $erro, $pets, $pet (array|null), $posicao, $totalPets,
  *   $anteriorId, $seguinteId, $dispositivo (array|null), $status (array|null), $proxima (array|null), $calc (array|null)
  */
 $titulo    = 'Início';
@@ -25,7 +25,10 @@ $portes = ['pequeno' => 'Pequeno', 'medio' => 'Médio', 'grande' => 'Grande'];
                 <h1>Olá, <?= $e($primeiroNome) ?>!</h1>
                 <p>Seja bem-vindo ao seu comedouro inteligente.</p>
             </header>
-            <a class="sino" href="/configuracao" aria-label="Notificações e configurações"><svg aria-hidden="true"><use href="#i-sino"/></svg></a>
+            <a class="sino" href="/notificacoes" aria-label="Notificações<?= $naoLidas > 0 ? ' (' . (int) $naoLidas . ' novas)' : '' ?>">
+                <svg aria-hidden="true"><use href="#i-sino"/></svg>
+                <?php if ($naoLidas > 0): ?><span class="sino-badge" aria-hidden="true"><?= $naoLidas > 9 ? '9+' : (int) $naoLidas ?></span><?php endif; ?>
+            </a>
         </div>
 
         <?php if (!empty($erro)): ?><div class="alerta" role="alert"><?= $e($erro) ?></div><?php endif; ?>

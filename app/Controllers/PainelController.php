@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Core\Database;
 use App\Models\Agendamento;
 use App\Models\Dispositivo;
+use App\Models\Notificacao;
 use App\Models\Pet;
 use App\Services\CalculoEnergetico;
 use PDOException;
@@ -26,6 +27,7 @@ use RuntimeException;
  *  - Comedouro sem horários -> "Próxima alimentação" mostra "—".
  *  - Pet sem peso (cadastro antigo) -> a necessidade energética mostra "—".
  *  - "Unknown column 'distancia_cm'" (42S22) -> falta rodar a migração 09 (e a 07/08 antes dela).
+ *  - Sininho sem número mesmo com avisos -> falta rodar a migração 10 (o erro fica só no log).
  *  - Sessão apontando para usuário que não existe mais -> volta para /login.
  */
 class PainelController
@@ -54,6 +56,7 @@ class PainelController
         $seguinteId  = 0;
         $posicao     = 0;
         $totalPets   = 0;
+        $naoLidas    = 0;
 
         try {
             // 2) Nome do usuário
@@ -102,6 +105,18 @@ class PainelController
         } catch (RuntimeException $e) {
             error_log('[painel] ' . $e->getMessage());
             $erro = $e->getMessage();
+        }
+
+        // Sininho: checa avisos "na hora" e conta os não lidos. Avisos NUNCA devem quebrar o painel,
+        // por isso qualquer erro aqui (ex.: migração 10 ainda não rodada) vai só para o log.
+        if ($usuario) {
+            try {
+                Notificacao::verificarOffline($usuarioId);
+                Notificacao::verificarRelatorioSemanal($usuarioId);
+                $naoLidas = Notificacao::contarNaoLidas($usuarioId);
+            } catch (PDOException | RuntimeException $e) {
+                error_log('[painel/notificacoes] ' . $e->getMessage());
+            }
         }
 
         // Variáveis consumidas por app/Views/painel.php

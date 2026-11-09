@@ -10,7 +10,8 @@ use App\Core\Database;
  *   pendente -> enviado (o ESP32 recebeu) -> concluido (o ESP32 confirmou)
  *
  * LIBERADA x CONSUMIDA (veja database/migracoes/09_sensores_e_consumo.sql):
- *   liberado_g  = o que a balança mediu que caiu na tigela (se não houver balança, vale porcao_g)
+ *   liberado_g  = o que a balança mediu que caiu na tigela (sem balança, vale enviado_g = o que o motor recebeu
+ *                 para liberar, já descontando o que havia na tigela; sem ele, a porcao_g)
  *   consumido_g = o que o pet comeu (só existe quando a balança mediu)
  */
 class Historico
@@ -56,7 +57,7 @@ class Historico
         $stmt = Database::getConnection()->prepare(
             "SELECT DATE(COALESCE(concluido_em, enviado_em)) AS dia,
                     COUNT(*) AS refeicoes,
-                    SUM(COALESCE(liberado_g, porcao_g)) AS liberado,
+                    SUM(COALESCE(liberado_g, enviado_g, porcao_g)) AS liberado,
                     SUM(COALESCE(consumido_g, 0)) AS consumido,
                     COUNT(consumido_g) AS medidas
                FROM historico
@@ -78,5 +79,18 @@ class Historico
         }
 
         return $resumo;
+    }
+
+    /** Última refeição do comedouro (qualquer origem): usada no painel "Última liberação" da tela Alimentação. */
+    public static function ultima(int $dispositivoId): ?array
+    {
+        $stmt = Database::getConnection()->prepare(
+            'SELECT id, origem, porcao_g, enviado_g, peso_antes_g, peso_depois_g, liberado_g, consumido_g, status, criado_em, enviado_em, concluido_em
+               FROM historico WHERE dispositivo_id = :d ORDER BY id DESC LIMIT 1'
+        );
+        $stmt->execute([':d' => $dispositivoId]);
+        $linha = $stmt->fetch();
+
+        return $linha === false ? null : $linha;
     }
 }

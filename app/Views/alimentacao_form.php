@@ -43,7 +43,7 @@ $voltar = '/alimentacao?dispositivo=' . (int) $dispositivo['id'];
                         <svg class="icone" aria-hidden="true"><use href="#i-balanca"/></svg>
                         <input type="number" id="quantidade" name="quantidade" min="1" max="2000" step="1" inputmode="numeric" placeholder="Ex: 50" required value="<?= $e($old['quantidade'] ?? '') ?>">
                     </div>
-                    <p class="ajuda">Sugestão: a porção por refeição calculada no perfil do pet.</p>
+                    <p class="ajuda">É o quanto deve haver na tigela: se já tiver ração, o comedouro libera só o que falta. Sugestão: a porção calculada no perfil do pet.</p>
                 </div>
             </div>
 
