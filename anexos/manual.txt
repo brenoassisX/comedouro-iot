@@ -1,0 +1,54 @@
+ativar apache e mysql no xampp
+
+inicia o servidor conectando o sistema ao esp32 utilizando:
+
+php -S 0.0.0.0:8000 -t public public/index.php
+
+and
+
+powershell -ExecutionPolicy Bypass -File scripts\iniciar_teste.ps1 -Porta 8000
+
+caso o php não esteja no path
+
+C:\xampp\php\php.exe -S 0.0.0.0:8000 -t public public/index.php
+
+acessar o servidor no navegador
+
+http://localhost:8000/
+
+acessar o phpmyadmin (banco de dados) e importar o sql
+
+http://localhost/phpmyadmin/
+
+ou 
+
+http://localhost:8080/phpmyadmin/
+
+CONEXÔES
+
+Motor
+Vermelho - Positivo protoboard
+Marrom/Preto - GND/Negativo protoboard
+Amarelo - D13 ESP32
+
+Sensor
+Azul - Positivo protoboard
+Preto - GND/Negativo protoboard
+Laranja - Trig - D18 Esp32
+Vermelho - Echo - D5 Esp32
+
+Balança
+
+Vermelho - E+
+Preto - E-
+Branco - A-
+Verde - A +
+
+Preto - GND/Negativo protoboard
+Branco - DT - D16 Esp32
+Verde - SCK - D17 Esp32
+Vermelho - VCC - Positivo protoboard
+
+-507581
+-507657
+

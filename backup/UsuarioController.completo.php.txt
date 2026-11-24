@@ -1,0 +1,741 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use App\Core\Database;
+use App\Core\GoogleOAuth;
+use App\Core\Mailer;
+use App\Core\RateLimiter;
+use DateTimeImmutable;
+use PDO;
+use PDOException;
+use Throwable;
+
+/**
+ * Autenticação de utilizadores: exibir tela, login e cadastro.
+ *
+ * Padrão usado nos POSTs: Post/Redirect/Get.
+ *  - Erro   -> guarda a mensagem em $_SESSION['flash'] e redireciona para /login
+ *  - Sucesso-> inicia a sessão e redireciona para /painel
+ * Assim, F5 na página nunca reenvia o formulário.
+ */
+class UsuarioController
+{
+    private const SENHA_MIN = 8;
+    private const SENHA_MAX = 72;   // limite do bcrypt (PASSWORD_DEFAULT): bytes além disso são ignorados
+
+    private ?PDO $pdo = null;
+
+    /** Conexão preguiçosa: GET /login não precisa de tocar na base de dados. */
+    private function pdo(): PDO
+    {
+        return $this->pdo ??= Database::getConnection();
+    }
+
+    // ==================================================================
+    // GET /login  -> renderiza a View
+    // ==================================================================
+    public function mostrar(): void
+    {
+        if (!empty($_SESSION['usuario_id'])) {
+            $this->redirecionar('/painel');
+        }
+
+        // Variáveis consumidas por app/Views/login.php
+        $flash = $_SESSION['flash'] ?? [];
+        unset($_SESSION['flash']);          // flash vale para uma única exibição
+
+        $erro = $flash['erro'] ?? null;
+        $sucesso = $flash['sucesso'] ?? null;
+        $reenviar = !empty($flash['reenviar']);
+        $aba  = $flash['aba']  ?? 'entrar';
+        $old  = $flash['old']  ?? [];
+        $csrf = $this->tokenCsrf();
+
+        require BASE_PATH . '/app/Views/login.php';
+    }
+
+    // ==================================================================
+    // POST /login
+    // ==================================================================
+    public function login(): void
+    {
+        $this->validarCsrf('entrar');
+
+        $email = $this->normalizarEmail($_POST['email'] ?? '');
+        $senha = (string) ($_POST['senha'] ?? '');
+
+        if ($email === '' || $senha === '') {
+            $this->voltarComErro('entrar', 'Informe o e-mail e a senha.', ['email' => $email]);
+        }
+
+        // Limite de FALHAS em 15 min: por IP (20) e por e-mail (10).
+        // O e-mail tem limite próprio para frear ataques distribuídos contra uma só conta.
+        $limites = ['ip:' . $this->ipCliente() => [20, 900], 'email:' . $email => [10, 900]];
+
+        if ($this->limiteExcedido('login', $limites)) {
+            $this->voltarComErro(
+                'entrar',
+                'Muitas tentativas de login. Aguarde 15 minutos e tente novamente.',
+                ['email' => $email]
+            );
+        }
+
+        try {
+            $stmt = $this->pdo()->prepare(
+                'SELECT id, senha_hash, email_verificado_em FROM usuarios WHERE email = :email LIMIT 1'
+            );
+            $stmt->execute([':email' => $email]);
+            $usuario = $stmt->fetch();
+
+            if ($usuario && $usuario['senha_hash'] !== null) {   // conta só-Google (sem senha) cai no else
+                $valido = password_verify($senha, $usuario['senha_hash']);
+            } else {
+                // E-mail inexistente: gasta o mesmo tempo de CPU para não revelar se existe.
+                password_hash($senha, PASSWORD_DEFAULT);
+                $valido = false;
+            }
+
+            if ($valido && password_needs_rehash($usuario['senha_hash'], PASSWORD_DEFAULT)) {
+                $upd = $this->pdo()->prepare('UPDATE usuarios SET senha_hash = :h WHERE id = :id');
+                $upd->execute([':h' => password_hash($senha, PASSWORD_DEFAULT), ':id' => $usuario['id']]);
+            }
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::login] ' . $e->getMessage());
+            $this->voltarComErro('entrar', 'Erro interno. Tente novamente em instantes.', ['email' => $email]);
+        }
+
+        if (!$valido) {
+            $this->registrarTentativas('login', array_keys($limites));
+            $this->voltarComErro('entrar', 'E-mail ou senha inválidos.', ['email' => $email]);
+        }
+
+        // Senha correta, mas o e-mail nunca foi confirmado: não entra.
+        // (Só dizemos isto a quem acertou a senha, então não vaza quais e-mails existem.)
+        if ($usuario['email_verificado_em'] === null) {
+            $_SESSION['flash'] = [
+                'erro'     => 'Confirme seu e-mail antes de entrar. Enviamos um link quando você criou a conta.',
+                'aba'      => 'entrar',
+                'old'      => ['email' => $email],
+                'reenviar' => true,
+            ];
+            $this->redirecionar('/login#entrar');
+        }
+
+        $this->limparTentativas('login', ['email:' . $email]);   // login ok zera as falhas deste e-mail
+        $this->iniciarSessao((int) $usuario['id']);
+        $this->redirecionar('/painel');
+    }
+
+    // ==================================================================
+    // POST /cadastrar  (cria a conta NÃO verificada e envia o e-mail de confirmação)
+    // ==================================================================
+    public function cadastrar(): void
+    {
+        $this->validarCsrf('cadastrar');
+
+        // 10 cadastros por hora por IP (evita criação em massa e disparo de e-mails)
+        $this->limitarAcao('cadastro', ['ip:' . $this->ipCliente() => [10, 3600]], '/login#cadastrar');
+
+        $nome  = trim(preg_replace('/\s+/u', ' ', (string) ($_POST['nome'] ?? '')));
+        $email = $this->normalizarEmail($_POST['email'] ?? '');
+        $senha = (string) ($_POST['senha'] ?? '');
+        $old   = ['nome' => $nome, 'email' => $email];   // a senha nunca volta para a View
+
+        if ($nome === '' || mb_strlen($nome) > 100) {
+            $this->voltarComErro('cadastrar', 'Informe o seu nome completo (até 100 caracteres).', $old);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 150) {
+            $this->voltarComErro('cadastrar', 'Informe um e-mail válido.', $old);
+        }
+        if (strlen($senha) < self::SENHA_MIN) {
+            $this->voltarComErro('cadastrar', 'A senha deve ter pelo menos ' . self::SENHA_MIN . ' caracteres.', $old);
+        }
+        if (strlen($senha) > self::SENHA_MAX) {
+            $this->voltarComErro('cadastrar', 'A senha deve ter no máximo ' . self::SENHA_MAX . ' caracteres.', $old);
+        }
+
+        $token  = bin2hex(random_bytes(32));
+        $expira = (new DateTimeImmutable('+24 hours'))->format('Y-m-d H:i:s');
+
+        try {
+            $stmt = $this->pdo()->prepare(
+                'INSERT INTO usuarios (nome, email, senha_hash, verificacao_token, verificacao_expira)
+                 VALUES (:nome, :email, :hash, :token, :expira)'
+            );
+            $stmt->execute([
+                ':nome'   => $nome,
+                ':email'  => $email,
+                ':hash'   => password_hash($senha, PASSWORD_DEFAULT),
+                ':token'  => hash('sha256', $token),
+                ':expira' => $expira,
+            ]);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? 0) === 1062) {
+                $this->voltarComErro(
+                    'cadastrar',
+                    'Este e-mail já está cadastrado. Entre, recupere a senha ou peça um novo link de confirmação.',
+                    $old
+                );
+            }
+            error_log('[UsuarioController::cadastrar] ' . $e->getMessage());
+            $this->voltarComErro('cadastrar', 'Erro interno. Tente novamente em instantes.', $old);
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::cadastrar] ' . $e->getMessage());
+            $this->voltarComErro('cadastrar', 'Erro interno. Tente novamente em instantes.', $old);
+        }
+
+        $this->enviarConfirmacao($email, $token);
+
+        // Sem login automático: a conta só funciona depois de confirmar o e-mail.
+        $this->redirecionarComFlash(
+            '/login',
+            'sucesso',
+            'Conta criada! Enviamos um link de confirmação para o seu e-mail. Confirme para poder entrar.'
+        );
+    }
+
+    // ==================================================================
+    // GET /logout
+    // ==================================================================
+    public function logout(): void
+    {
+        $_SESSION = [];
+
+        if (ini_get('session.use_cookies')) {
+            $p = session_get_cookie_params();
+            setcookie(session_name(), '', [
+                'expires'  => time() - 42000,
+                'path'     => $p['path'],
+                'domain'   => $p['domain'],
+                'secure'   => $p['secure'],
+                'httponly' => $p['httponly'],
+                'samesite' => $p['samesite'] ?: 'Lax',
+            ]);
+        }
+
+        session_destroy();
+        $this->redirecionar('/login');
+    }
+
+    // ##################################################################
+    // HELPERS NOVOS (necessários para os módulos 1 e 2)
+    // ##################################################################
+
+    private function cfg(): array
+    {
+        static $cfg = null;
+        return $cfg ??= require BASE_PATH . '/app/Config/config.php';
+    }
+
+    /** Renderiza app/Views/{$view}.php expondo as chaves de $dados como variáveis. */
+    private function renderizar(string $view, array $dados = []): void
+    {
+        extract($dados, EXTR_SKIP);
+        require BASE_PATH . '/app/Views/' . $view . '.php';
+    }
+
+    private function lerFlash(): array
+    {
+        $flash = $_SESSION['flash'] ?? [];
+        unset($_SESSION['flash']);
+        return $flash;
+    }
+
+    /** $tipo: 'erro' ou 'sucesso' */
+    private function redirecionarComFlash(string $destino, string $tipo, string $mensagem): never
+    {
+        $_SESSION['flash'] = [$tipo => $mensagem];
+        $this->redirecionar($destino);
+    }
+
+    private function exigirCsrf(string $destino): void
+    {
+        $esperado = (string) ($_SESSION['csrf'] ?? '');
+        $enviado  = (string) ($_POST['csrf_token'] ?? '');
+
+        if ($esperado === '' || !hash_equals($esperado, $enviado)) {
+            $this->redirecionarComFlash($destino, 'erro', 'Sessão expirada. Tente novamente.');
+        }
+    }
+
+    // ##################################################################
+    // MÓDULO 3 - CONFIRMAÇÃO DE E-MAIL
+    // Rotas: GET /confirmar-email  |  GET|POST /reenviar-confirmacao
+    // Requer: migração 03, view reenviar_confirmacao
+    // ##################################################################
+
+    /** GET /confirmar-email?token=... (link recebido por e-mail) */
+    public function confirmarEmail(): void
+    {
+        $token = (string) ($_GET['token'] ?? '');
+        $ok    = false;
+
+        if (preg_match('/^[0-9a-f]{64}$/', $token)) {
+            try {
+                $agora = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+                $stmt  = $this->pdo()->prepare(
+                    'UPDATE usuarios
+                        SET email_verificado_em = :verificado, verificacao_token = NULL, verificacao_expira = NULL
+                      WHERE verificacao_token = :token AND verificacao_expira > :agora
+                        AND email_verificado_em IS NULL'
+                );
+                $stmt->execute([':verificado' => $agora, ':token' => hash('sha256', $token), ':agora' => $agora]);
+                $ok = $stmt->rowCount() === 1;
+            } catch (Throwable $e) {
+                error_log('[UsuarioController::confirmarEmail] ' . $e->getMessage());
+            }
+        }
+
+        if ($ok) {
+            $this->redirecionarComFlash('/login', 'sucesso', 'E-mail confirmado! Agora é só entrar.');
+        }
+
+        $this->redirecionarComFlash(
+            '/reenviar-confirmacao',
+            'erro',
+            'Link inválido, expirado ou já utilizado. Se já confirmou, é só entrar; senão, peça um novo link.'
+        );
+    }
+
+    /** GET /reenviar-confirmacao */
+    public function mostrarReenvio(): void
+    {
+        $flash = $this->lerFlash();
+
+        $this->renderizar('reenviar_confirmacao', [
+            'erro'    => $flash['erro'] ?? null,
+            'sucesso' => $flash['sucesso'] ?? null,
+            'csrf'    => $this->tokenCsrf(),
+        ]);
+    }
+
+    /** POST /reenviar-confirmacao */
+    public function reenviarConfirmacao(): void
+    {
+        $this->exigirCsrf('/reenviar-confirmacao');
+
+        $email = $this->normalizarEmail($_POST['email'] ?? '');
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->redirecionarComFlash('/reenviar-confirmacao', 'erro', 'Informe um e-mail válido.');
+        }
+
+        $this->limitarAcao('reenvio', [
+            'ip:' . $this->ipCliente() => [10, 3600],
+            'email:' . $email          => [3, 3600],
+        ], '/reenviar-confirmacao');
+
+        try {
+            $token = bin2hex(random_bytes(32));
+            $stmt  = $this->pdo()->prepare(
+                'UPDATE usuarios SET verificacao_token = :hash, verificacao_expira = :expira
+                  WHERE email = :email AND email_verificado_em IS NULL'
+            );
+            $stmt->execute([
+                ':hash'   => hash('sha256', $token),
+                ':expira' => (new DateTimeImmutable('+24 hours'))->format('Y-m-d H:i:s'),
+                ':email'  => $email,
+            ]);
+
+            if ($stmt->rowCount() === 1) {
+                $this->enviarConfirmacao($email, $token);
+            }
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::reenviarConfirmacao] ' . $e->getMessage());
+        }
+
+        // Resposta neutra: não revela se o e-mail existe nem se já estava confirmado.
+        $this->redirecionarComFlash(
+            '/reenviar-confirmacao',
+            'sucesso',
+            'Se existir uma conta aguardando confirmação para este e-mail, enviamos um novo link.'
+        );
+    }
+
+    private function enviarConfirmacao(string $email, string $token): void
+    {
+        $link = rtrim($this->cfg()['app_url'], '/') . '/confirmar-email?token=' . $token;
+
+        Mailer::enviar(
+            $email,
+            'Confirme seu e-mail - Comedouro Pet',
+            "Olá!\n\nPara ativar sua conta, confirme seu e-mail no link abaixo (válido por 24 horas):\n\n{$link}\n\n"
+            . "Se você não criou esta conta, ignore este e-mail: ela não será ativada.\n"
+        );
+    }
+
+    // ##################################################################
+    // MÓDULO 4 - LIMITE DE TENTATIVAS (IP + e-mail)
+    // Requer: migração 04, Core/RateLimiter.php
+    // ##################################################################
+
+    /**
+     * IP de quem está a chamar. Usamos só REMOTE_ADDR de propósito: headers como X-Forwarded-For
+     * são forjáveis. Atrás de proxy/Cloudflare, configure o servidor web para repor o IP real em
+     * REMOTE_ADDR (Nginx: real_ip_header; Apache: mod_remoteip) em vez de confiar no header aqui.
+     */
+    private function ipCliente(): string
+    {
+        return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+    }
+
+    /** @param array<string, array{0:int,1:int}> $regras  chave => [máximo, janela em segundos] */
+    private function limiteExcedido(string $acao, array $regras): bool
+    {
+        try {
+            foreach ($regras as $chave => [$max, $janela]) {
+                if (RateLimiter::excedeu($acao, (string) $chave, $max, $janela)) {
+                    return true;
+                }
+            }
+        } catch (Throwable $e) {
+            // Falha ABERTA: se a tabela/banco do limitador falhar, o login não pode parar. Fica no log.
+            error_log('[RateLimiter] ' . $e->getMessage());
+        }
+        return false;
+    }
+
+    /** @param string[] $chaves */
+    private function registrarTentativas(string $acao, array $chaves): void
+    {
+        try {
+            foreach ($chaves as $chave) {
+                RateLimiter::registrar($acao, $chave);
+            }
+        } catch (Throwable $e) {
+            error_log('[RateLimiter] ' . $e->getMessage());
+        }
+    }
+
+    /** @param string[] $chaves */
+    private function limparTentativas(string $acao, array $chaves): void
+    {
+        try {
+            foreach ($chaves as $chave) {
+                RateLimiter::limpar($acao, $chave);
+            }
+        } catch (Throwable $e) {
+            error_log('[RateLimiter] ' . $e->getMessage());
+        }
+    }
+
+    /** Conta TODA chamada (ação sensível). Se algum limite estourou, volta para $destino com erro. */
+    private function limitarAcao(string $acao, array $regras, string $destino): void
+    {
+        if ($this->limiteExcedido($acao, $regras)) {
+            $this->redirecionarComFlash($destino, 'erro', 'Muitas tentativas. Aguarde um pouco e tente novamente.');
+        }
+        $this->registrarTentativas($acao, array_map('strval', array_keys($regras)));
+    }
+
+    // ##################################################################
+    // MÓDULO 1 - RECUPERAÇÃO DE SENHA
+    // Rotas: GET|POST /esqueci-senha  e  GET|POST /redefinir-senha
+    // Requer: migração 01, Core/Mailer.php, views esqueci_senha e redefinir_senha
+    // ##################################################################
+
+    /** GET /esqueci-senha */
+    public function esqueciSenha(): void
+    {
+        $flash = $this->lerFlash();
+
+        $this->renderizar('esqueci_senha', [
+            'erro'    => $flash['erro'] ?? null,
+            'sucesso' => $flash['sucesso'] ?? null,
+            'csrf'    => $this->tokenCsrf(),
+        ]);
+    }
+
+    /** POST /esqueci-senha */
+    public function enviarLinkRecuperacao(): void
+    {
+        $this->exigirCsrf('/esqueci-senha');
+
+        $email = $this->normalizarEmail($_POST['email'] ?? '');
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->redirecionarComFlash('/esqueci-senha', 'erro', 'Informe um e-mail válido.');
+        }
+
+        // 10 pedidos/hora por IP e 3/hora por e-mail (vale para qualquer e-mail, exista ou não)
+        $this->limitarAcao('reset', [
+            'ip:' . $this->ipCliente() => [10, 3600],
+            'email:' . $email          => [3, 3600],
+        ], '/esqueci-senha');
+
+        try {
+            // Token em claro vai só no e-mail; no banco fica o hash (se o banco vazar, os links não servem)
+            $token   = bin2hex(random_bytes(32));
+            $expira  = (new DateTimeImmutable('+1 hour'))->format('Y-m-d H:i:s');
+
+            $stmt = $this->pdo()->prepare(
+                'UPDATE usuarios SET reset_token = :hash, reset_expires = :expira WHERE email = :email'
+            );
+            $stmt->execute([':hash' => hash('sha256', $token), ':expira' => $expira, ':email' => $email]);
+
+            if ($stmt->rowCount() === 1) {
+                $link = rtrim($this->cfg()['app_url'], '/') . '/redefinir-senha?token=' . $token;
+
+                Mailer::enviar(
+                    $email,
+                    'Recuperação de senha - Comedouro Pet',
+                    "Olá!\n\nRecebemos um pedido para redefinir a senha da sua conta.\n"
+                    . "Use o link abaixo (válido por 1 hora):\n\n{$link}\n\n"
+                    . "Se você não fez este pedido, ignore este e-mail: sua senha continua a mesma.\n"
+                );
+            }
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::enviarLinkRecuperacao] ' . $e->getMessage());
+        }
+
+        // Resposta idêntica exista ou não o e-mail: não revela quem tem conta.
+        $this->redirecionarComFlash(
+            '/esqueci-senha',
+            'sucesso',
+            'Se o e-mail estiver cadastrado, enviamos um link de recuperação. Confira também o spam.'
+        );
+    }
+
+    /** GET /redefinir-senha?token=... */
+    public function redefinirSenha(): void
+    {
+        $token = (string) ($_GET['token'] ?? '');
+
+        if (!$this->tokenResetValido($token)) {
+            $this->redirecionarComFlash('/esqueci-senha', 'erro', 'Link inválido ou expirado. Solicite um novo.');
+        }
+
+        header('Referrer-Policy: no-referrer');   // o token está na URL: não deixe vazar em requisições externas
+        $flash = $this->lerFlash();
+
+        $this->renderizar('redefinir_senha', [
+            'token' => $token,
+            'erro'  => $flash['erro'] ?? null,
+            'csrf'  => $this->tokenCsrf(),
+        ]);
+    }
+
+    /** POST /redefinir-senha */
+    public function atualizarSenha(): void
+    {
+        $token  = (string) ($_POST['token'] ?? '');
+        $voltar = '/redefinir-senha?token=' . urlencode($token);
+
+        $this->exigirCsrf($voltar);
+
+        $senha     = (string) ($_POST['senha'] ?? '');
+        $confirmar = (string) ($_POST['confirmar_senha'] ?? '');
+
+        if (strlen($senha) < self::SENHA_MIN || strlen($senha) > self::SENHA_MAX) {
+            $this->redirecionarComFlash(
+                $voltar, 'erro',
+                'A senha deve ter entre ' . self::SENHA_MIN . ' e ' . self::SENHA_MAX . ' caracteres.'
+            );
+        }
+        if (!hash_equals($senha, $confirmar)) {
+            $this->redirecionarComFlash($voltar, 'erro', 'As senhas não coincidem.');
+        }
+
+        try {
+            // Um único UPDATE valida o token, valida a validade E o consome (uso único, sem corrida)
+            $stmt = $this->pdo()->prepare(
+                'UPDATE usuarios
+                    SET senha_hash = :hash, reset_token = NULL, reset_expires = NULL,
+                        email_verificado_em = COALESCE(email_verificado_em, :verificado),
+                        verificacao_token = NULL, verificacao_expira = NULL
+                  WHERE reset_token = :token AND reset_expires > :agora'
+            );
+            // Quem recebeu o link no e-mail provou ser o dono dele: a conta passa a verificada
+            // e a senha escolhida agora substitui qualquer senha definida antes por outra pessoa.
+            $agoraStr = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+            $stmt->execute([
+                ':hash'       => password_hash($senha, PASSWORD_DEFAULT),
+                ':verificado' => $agoraStr,
+                ':token'      => hash('sha256', $token),
+                ':agora'      => $agoraStr,
+            ]);
+            $atualizou = $stmt->rowCount() === 1;
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::atualizarSenha] ' . $e->getMessage());
+            $this->redirecionarComFlash($voltar, 'erro', 'Erro interno. Tente novamente em instantes.');
+        }
+
+        if (!$atualizou) {
+            $this->redirecionarComFlash('/esqueci-senha', 'erro', 'Link inválido ou expirado. Solicite um novo.');
+        }
+
+        $this->redirecionarComFlash('/login', 'sucesso', 'Senha redefinida! Entre com a nova senha.');
+    }
+
+    private function tokenResetValido(string $token): bool
+    {
+        if (!preg_match('/^[0-9a-f]{64}$/', $token)) {
+            return false;
+        }
+
+        try {
+            $stmt = $this->pdo()->prepare(
+                'SELECT 1 FROM usuarios WHERE reset_token = :token AND reset_expires > :agora LIMIT 1'
+            );
+            $stmt->execute([
+                ':token' => hash('sha256', $token),
+                ':agora' => (new DateTimeImmutable())->format('Y-m-d H:i:s'),
+            ]);
+            return (bool) $stmt->fetchColumn();
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::tokenResetValido] ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    // ##################################################################
+    // MÓDULO 2 - LOGIN COM GOOGLE
+    // Rotas: GET /auth/google  e  GET /auth/google/callback
+    // Requer: migração 02, Core/GoogleOAuth.php, credenciais em config/variáveis de ambiente
+    // ##################################################################
+
+    /** GET /auth/google  -> envia o utilizador para a tela de login do Google */
+    public function googleRedirecionar(): void
+    {
+        $google = new GoogleOAuth();
+
+        if (!$google->configurado()) {
+            $this->redirecionarComFlash('/login', 'erro', 'Login com Google indisponível no momento.');
+        }
+
+        // "state" impede CSRF no fluxo OAuth: só aceitamos o retorno que nós iniciámos
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['oauth_state'] = $state;
+
+        header('Location: ' . $google->urlAutorizacao($state), true, 302);
+        exit;
+    }
+
+    /** GET /auth/google/callback  -> o Google devolve o utilizador com ?code=...&state=... */
+    public function googleCallback(): void
+    {
+        $stateEsperado = (string) ($_SESSION['oauth_state'] ?? '');
+        unset($_SESSION['oauth_state']);                      // uso único
+        $stateRecebido = (string) ($_GET['state'] ?? '');
+        $code          = (string) ($_GET['code'] ?? '');
+
+        if (isset($_GET['error'])) {                          // ex.: utilizador clicou em "Cancelar"
+            $this->redirecionarComFlash('/login', 'erro', 'Login com Google cancelado.');
+        }
+        if ($stateEsperado === '' || !hash_equals($stateEsperado, $stateRecebido) || $code === '') {
+            $this->redirecionarComFlash('/login', 'erro', 'Não foi possível validar o login com Google. Tente novamente.');
+        }
+
+        $usuarioId = null;
+
+        try {
+            $perfil = (new GoogleOAuth())->obterPerfil($code);
+
+            // Só confiamos no e-mail se o Google garante que ele foi verificado
+            if ($perfil['email_verificado']) {
+                $email = $this->normalizarEmail($perfil['email']);
+                $nome  = trim($perfil['nome']) !== '' ? $perfil['nome'] : strstr($email, '@', true);
+
+                $usuarioId = $this->buscarOuCriarUsuarioGoogle($email, mb_substr($nome, 0, 100));
+            }
+        } catch (Throwable $e) {
+            error_log('[UsuarioController::googleCallback] ' . $e->getMessage());
+        }
+
+        if ($usuarioId === null) {
+            $this->redirecionarComFlash(
+                '/login', 'erro',
+                'Não foi possível entrar com o Google. Verifique se o e-mail da conta está verificado e tente novamente.'
+            );
+        }
+
+        $this->iniciarSessao($usuarioId);
+        $this->redirecionar('/painel');
+    }
+
+    /**
+     * Já existe -> devolve o id. Não existe -> cria SEM senha, já verificada.
+     * Se existir mas NUNCA foi confirmada (criada por senha), o Google acabou de provar quem é o
+     * dono do e-mail: descartamos a senha antiga (pode ser de um impostor) e marcamos como verificada.
+     */
+    private function buscarOuCriarUsuarioGoogle(string $email, string $nome): int
+    {
+        $agora = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        $sel = $this->pdo()->prepare('SELECT id, email_verificado_em FROM usuarios WHERE email = :email LIMIT 1');
+        $sel->execute([':email' => $email]);
+        $usuario = $sel->fetch();
+
+        if ($usuario) {
+            if ($usuario['email_verificado_em'] === null) {
+                $upd = $this->pdo()->prepare(
+                    'UPDATE usuarios
+                        SET senha_hash = NULL, email_verificado_em = :agora,
+                            verificacao_token = NULL, verificacao_expira = NULL,
+                            reset_token = NULL, reset_expires = NULL
+                      WHERE id = :id AND email_verificado_em IS NULL'
+                );
+                $upd->execute([':agora' => $agora, ':id' => $usuario['id']]);
+            }
+            return (int) $usuario['id'];
+        }
+
+        try {
+            $ins = $this->pdo()->prepare(
+                'INSERT INTO usuarios (nome, email, senha_hash, email_verificado_em)
+                 VALUES (:nome, :email, NULL, :agora)'
+            );
+            $ins->execute([':nome' => $nome, ':email' => $email, ':agora' => $agora]);
+            return (int) $this->pdo()->lastInsertId();
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? 0) === 1062) {           // criado em paralelo: reaplica a lógica
+                return $this->buscarOuCriarUsuarioGoogle($email, $nome);
+            }
+            throw $e;
+        }
+    }
+
+    // ==================================================================
+    // Helpers
+    // ==================================================================
+
+    private function iniciarSessao(int $usuarioId): void
+    {
+        session_regenerate_id(true);                 // evita session fixation
+        $_SESSION['usuario_id'] = $usuarioId;
+        unset($_SESSION['csrf']);                    // novo token na próxima exibição do formulário
+    }
+
+    private function normalizarEmail(mixed $valor): string
+    {
+        return mb_strtolower(trim((string) $valor));
+    }
+
+    private function tokenCsrf(): string
+    {
+        return $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
+    }
+
+    private function validarCsrf(string $aba): void
+    {
+        $esperado = (string) ($_SESSION['csrf'] ?? '');
+        $enviado  = (string) ($_POST['csrf_token'] ?? '');
+
+        if ($esperado === '' || !hash_equals($esperado, $enviado)) {
+            $this->voltarComErro($aba, 'Sessão expirada. Tente novamente.');
+        }
+    }
+
+    /** Guarda o erro na sessão e volta para a tela, já na aba correta. */
+    private function voltarComErro(string $aba, string $mensagem, array $old = []): never
+    {
+        $_SESSION['flash'] = ['erro' => $mensagem, 'aba' => $aba, 'old' => $old];
+        $this->redirecionar('/login#' . $aba);
+    }
+
+    private function redirecionar(string $destino): never
+    {
+        header('Location: ' . $destino, true, 303);
+        exit;
+    }
+}

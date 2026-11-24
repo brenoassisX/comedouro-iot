@@ -1,0 +1,7 @@
+melhorias
+
+mac do esp 32, vir um "manual" junto com o produto final (remover a frase em baixo do mac 32 na tela dispositivos)
+
+campo para o usuário inserir nome e senha da rede para que o esp 32 possa realizar a conexão com o servidor
+
+o servidor comportaria dois comedouros ? cada um se comunicando com 1 animal diferente

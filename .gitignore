@@ -1,0 +1,13 @@
+# Fotos enviadas pelos usuários (cada computador tem as suas); mantém só a pasta e a proteção
+public/uploads/pets/*
+public/uploads/usuarios/*
+!public/uploads/pets/.htaccess
+!public/uploads/pets/.gitkeep
+!public/uploads/usuarios/.htaccess
+!public/uploads/usuarios/.gitkeep
+
+# Arquivos do sistema/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

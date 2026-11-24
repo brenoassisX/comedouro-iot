@@ -1,0 +1,4 @@
+# Aqui só ficam imagens: nada desta pasta pode ser executado como script
+<FilesMatch "\.(php|phtml|phar|pl|py|cgi)$">
+    Require all denied
+</FilesMatch>
