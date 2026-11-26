@@ -22,7 +22,7 @@ $reenviar = $reenviar ?? false;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Acesso | Comedouro Pet</title>
+    <title>Acesso | PetSync</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -264,7 +264,7 @@ $reenviar = $reenviar ?? false;
 </svg>
 
 <main class="card">
-    <h1 class="sr-only">Acesso ao Comedouro Pet</h1>
+    <h1 class="sr-only">Acesso ao PetSync</h1>
 
     <!-- Abas -->
     <div class="abas" role="tablist" aria-label="Escolha entre entrar ou criar conta">

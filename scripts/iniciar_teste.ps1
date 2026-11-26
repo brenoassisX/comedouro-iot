@@ -1,5 +1,5 @@
 <#
-  PetFeeder - prepara e inicia o servidor para o teste com o ESP32 (Windows / PowerShell)
+  PetSync - prepara e inicia o servidor para o teste com o ESP32 (Windows / PowerShell)
 
   Uso, na pasta do projeto (terminal do VS Code):
     powershell -ExecutionPolicy Bypass -File scripts\iniciar_teste.ps1
@@ -24,7 +24,7 @@ Set-Location $raiz
 
 function Dizer([string]$texto, [string]$cor = 'White') { Write-Host $texto -ForegroundColor $cor }
 
-Dizer '=== PetFeeder: preparando o teste ===' Cyan
+Dizer '=== PetSync: preparando o teste ===' Cyan
 
 # ---------- 1) PHP ----------
 $php = $null
@@ -86,7 +86,7 @@ if ($LiberarFirewall) {
     if (-not $admin) {
         Dizer '[!] Para usar -LiberarFirewall abra o terminal como Administrador.' Yellow
     } else {
-        $nome = "PetFeeder porta $Porta"
+        $nome = "PetSync porta $Porta"
         if (-not (Get-NetFirewallRule -DisplayName $nome -ErrorAction SilentlyContinue)) {
             New-NetFirewallRule -DisplayName $nome -Direction Inbound -Protocol TCP -LocalPort $Porta -Action Allow -Profile Any | Out-Null
             Dizer "[ok] Regra de firewall criada: $nome" Green

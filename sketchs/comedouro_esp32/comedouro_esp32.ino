@@ -1,5 +1,5 @@
 /*
- * PetFeeder - ESP32 (versão com comporta por SERVO)
+ * PetSync - ESP32 (versão com comporta por SERVO)
  *
  * A cada 10 s envia um POST em JSON para o PHP com MEDIDAS CRUAS:
  *   - distancia_cm  : sensor ultrassônico HC-SR04 (distância até a ração; o servidor converte em %)
@@ -9,6 +9,8 @@
  * ração do reservatório); o ESP32 só executa e, com balança, corrige as aberturas seguintes.
  *
  * Aceita VÁRIAS REDES Wi-Fi (ex.: casa e hotspot do celular), cada uma com o seu endereço de servidor.
+ *
+ * BALANÇA: desativada por padrão (USA_BALANCA = false). O servidor só planeja as aberturas pelo ângulo.
  *
  * PREPARAÇÃO (Arduino IDE):
  *   - Placa: "esp32 by Espressif Systems" (Gerenciador de Placas). WiFi.h e HTTPClient.h já vêm nele.
@@ -46,8 +48,8 @@ struct Rede {
 };
 
 const Rede REDES[] = {
-  { "A07 de Pietro", "987654321", "http://10.241.14.101:8000/api/sincronizar" },
-  { "NOME_DA_REDE_DE_CASA",    "SENHA_DA_REDE_DE_CASA",    "http://192.168.1.X:8080/api/sincronizar"  },
+    { "y",    "corinthians",    "http://10.137.127.101:8000/api/sincronizar"  },
+  { "NOME_DO_HOTSPOT_CELULAR", "SENHA_DO_HOTSPOT_CELULAR", "http://192.168.43.X:8080/api/sincronizar" },
 };
 const int TOTAL_REDES = sizeof(REDES) / sizeof(REDES[0]);
 
@@ -69,11 +71,17 @@ const float FATOR_CALIBRACAO = 420.0;
 
 // Comporta (servo)
 const int ANGULO_FECHADO = 0;                      // posição fechada: ajuste se o seu servo fechar em outro ângulo
+// CALIBRAÇÃO PELO SKETCH:
+//   ANGULO_FORCADO = 0  -> obedece o ângulo que o servidor manda (30°).
+//   ANGULO_FORCADO = 25 -> ignora o servidor e abre SEMPRE 25° (o número de aberturas continua o do servidor).
+const int ANGULO_FORCADO = 0;
+const unsigned long ABERTURA_TESTE_MS = 300;       // tempo aberta nos testes feitos pelo Monitor Serial
 const int ANGULO_MIN = 8;                          // mesmos limites do servidor (PlanoAbertura.php)
 const int ANGULO_MAX = 90;
-const int PULSOS_MAX = 6;
+const int PULSOS_MAX = 20;                         // até 20 aberturas de 30° por refeição
 const int EXTRA_ABERTURAS = 2;                     // com balança, até 2 aberturas além do plano para completar o peso
-const unsigned long TEMPO_FECHAR_MS    = 400;      // tempo para o servo chegar ao fechado antes de seguir
+const unsigned long INTERVALO_ABERTURAS_MS = 6000;   // espera entre uma abertura e a seguinte (poupa o mecanismo)
+const unsigned long TEMPO_FECHAR_MS    = 250;      // tempo para o servo chegar ao fechado antes de seguir
 const unsigned long ESPERA_ASSENTAR_MS = 1200;     // espera a ração assentar na tigela antes de pesar
 const float MARGEM_G = 5.0;                        // margem de erro da balança (igual à do servidor)
 // ==========================================================
@@ -143,6 +151,7 @@ void abrirEFechar(int graus, unsigned long ms) {
 //   COM balança: depois de cada abertura confere o peso. Para quando a tigela ganhou o pedido; se faltar,
 //   recalcula o ângulo da próxima abertura pelo que a anterior realmente liberou (gramas por grau).
 void abrirComporta(int gramas, int angulo, int pulsos, unsigned long aberturaMs) {
+  if (ANGULO_FORCADO > 0) angulo = ANGULO_FORCADO;
   angulo     = constrain(angulo, ANGULO_MIN, ANGULO_MAX);
   pulsos     = constrain(pulsos, 1, PULSOS_MAX);
   aberturaMs = constrain(aberturaMs, 100UL, 3000UL);
@@ -158,6 +167,10 @@ void abrirComporta(int gramas, int angulo, int pulsos, unsigned long aberturaMs)
   float gramasPorGrau = 0;   // aprendido na prática (só com balança)
 
   for (int i = 0; i < maxAberturas; i++) {
+    if (i > 0) {   // intervalo entre aberturas: não força o mecanismo
+      Serial.printf("  aguardando %lu s para a proxima abertura...\n", INTERVALO_ABERTURAS_MS / 1000);
+      delay(INTERVALO_ABERTURAS_MS);
+    }
     int anguloAtual = angulo;
 
     if (comBalanca && i > 0 && gramasPorGrau > 0.2f) {
@@ -166,7 +179,7 @@ void abrirComporta(int gramas, int angulo, int pulsos, unsigned long aberturaMs)
     }
 
     abrirEFechar(anguloAtual, aberturaMs);
-    delay(ESPERA_ASSENTAR_MS);
+    if (comBalanca) delay(ESPERA_ASSENTAR_MS);   // sem balança não há o que esperar: segue para a próxima abertura
 
     if (comBalanca) {
       bool ok;
@@ -297,7 +310,7 @@ void sincronizar() {
   int gramas      = recebido["gramas"] | 0;         // já descontado o que havia na tigela (regra de completar)
   int angulo      = recebido["angulo"] | 45;        // graus de abertura de CADA abertura
   int pulsos      = recebido["pulsos"] | 1;         // quantas aberturas
-  int aberturaMs  = recebido["abertura_ms"] | 600;  // quanto tempo fica aberta em cada uma
+  int aberturaMs  = recebido["abertura_ms"] | 300;  // quanto tempo fica aberta em cada uma
   int idComando   = recebido["id"] | 0;
 
   if (strcmp(comando, "alimentar") == 0 && gramas > 0) {
@@ -346,7 +359,23 @@ void setup() {
   ultimoEnvioMs = millis() - INTERVALO_MS;   // faz a primeira sincronizacao logo ao ligar
 }
 
+// TESTE PELO MONITOR SERIAL (115200, "Nova linha"): digite um número de 1 a 90 e Enter -> o servo abre
+// esse ângulo UMA vez e fecha. Pese a ração que caiu e anote os gramas por ângulo.
+void testeSerial() {
+  if (!Serial.available()) return;
+  int graus = Serial.parseInt();
+  while (Serial.available()) Serial.read();   // limpa o resto da linha
+  if (graus >= 1 && graus <= ANGULO_MAX) {
+    Serial.printf("TESTE: abrindo %d graus por %lu ms...\n", graus, ABERTURA_TESTE_MS);
+    abrirEFechar(graus, ABERTURA_TESTE_MS);
+    Serial.println("TESTE: fechado. Pese a racao que caiu.");
+  } else {
+    Serial.println("Digite um angulo de 1 a 90.");
+  }
+}
+
 void loop() {
+  testeSerial();
   // millis() em vez de delay(): o ESP32 continua livre para outras tarefas entre os envios
   if (millis() - ultimoEnvioMs >= INTERVALO_MS) {
     ultimoEnvioMs = millis();

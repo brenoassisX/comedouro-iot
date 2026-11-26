@@ -26,7 +26,7 @@ return [
     'mail' => [
         'driver'    => getenv('MAIL_DRIVER') ?: 'mail',
         'from'      => getenv('MAIL_FROM') ?: 'no-reply@localhost',
-        'from_nome' => 'Comedouro Pet',
+        'from_nome' => 'PetSync',
     ],
 
     // MÓDULO 2 - Google OAuth

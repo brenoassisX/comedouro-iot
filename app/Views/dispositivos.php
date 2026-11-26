@@ -50,8 +50,7 @@ require __DIR__ . '/partials/app_head.php';
                         <div class="disp-meta">
                             <span><?= $e($status['codigo']) ?> · <?= $e($atual['codigo_mac_esp']) ?></span>
                             <span>Pet: <?= $atual['pet_nome'] !== null ? $e($atual['pet_nome']) : 'sem pet vinculado' ?></span>
-                            <?php if ($status['peso'] !== null): ?><span>Tigela: <?= (int) round($status['peso']) ?> g</span><?php endif; ?>
-                            <span>Comporta: <?= (int) $atual['servo_g90_vazio'] ?>–<?= (int) $atual['servo_g90_cheio'] ?> g por abertura de 90°</span>
+                            <span>Comporta: ≈ <?= (int) round(((float) $atual['servo_g90_vazio'] + (float) $atual['servo_g90_cheio']) / 2 * 40 / 90) ?> g a cada 40° de abertura</span>
                             <span>Atualizado: <?= $e($status['atualizado']) ?></span>
                         </div>
                     </div>
@@ -59,11 +58,10 @@ require __DIR__ . '/partials/app_head.php';
 
                 <section class="caixa nivel-card" aria-label="Nível de ração">
                     <h2>Nível de ração</h2>
-                    <?php $pct = $status['nivel'] ?? 0; ?>
-                    <div class="barra-trilho" role="progressbar" aria-valuenow="<?= (int) $pct ?>" aria-valuemin="0" aria-valuemax="100">
-                        <div class="barra-preench" style="width: <?= (int) $pct ?>%"></div>
+                    <div class="barra-trilho" role="img" aria-label="<?= $e($status['nivel_texto']) ?>">
+                        <div class="barra-preench nivel-<?= $e($status['nivel_classe']) ?>" style="width: <?= (int) $status['nivel_barra'] ?>%"></div>
                     </div>
-                    <p class="nivel-pct"><?= $status['nivel'] !== null ? (int) $status['nivel'] . '%' : 'Sem leitura' ?></p>
+                    <p class="nivel-pct"><?= $e($status['nivel_texto']) ?></p>
                 </section>
             </div>
 

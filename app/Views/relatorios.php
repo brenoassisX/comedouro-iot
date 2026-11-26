@@ -3,12 +3,13 @@ declare(strict_types=1);
 /**
  * View: app/Views/relatorios.php
  * Variáveis do RelatorioController (via extract): $erro, $pets, $petAtual, $petId, $periodo, $inicio, $fim,
- *   $rotuloPeriodo, $dias, $total, $kgLiberado, $kgConsumido, $temConsumo, $media, $topo, $ticks, $consulta
+ *   $rotuloPeriodo, $dias, $total, $kgLiberado, $kgConsumido, $temConsumo, $preco, $temPreco, $custoTotal, $media, $topo, $ticks, $consulta
  */
 $titulo    = 'Relatórios';
 $menuAtivo = 'relatorios';
 require __DIR__ . '/partials/app_head.php';
 
+$fmtMoeda = static fn (float $v): string => 'R$ ' . number_format($v, 2, ',', '.');
 $fmtPeso = static fn (float $g): string => $g >= 1000 ? rtrim(rtrim(number_format($g / 1000, 2, ',', ''), '0'), ',') . ' kg' : (int) round($g) . ' g';
 $aba    = static fn (string $p): string => '/relatorios?' . http_build_query(['pet' => $petId, 'periodo' => $p]);
 ?>
@@ -70,8 +71,8 @@ $aba    = static fn (string $p): string => '/relatorios?' . http_build_query(['p
                 <div class="stats">
                     <div class="stat"><small>Total de refeições</small><strong><?= (int) $total ?></strong></div>
                     <div class="stat"><small>Ração liberada</small><strong><?= $e($fmtPeso($liberado)) ?></strong></div>
-                    <div class="stat" title="<?= $temConsumo ? 'Medido pela balança da tigela' : 'Sem leitura da balança neste período' ?>">
-                        <small>Ração consumida</small><strong><?= $temConsumo ? $e($fmtPeso($consumido)) : '—' ?></strong>
+                    <div class="stat" title="<?= $temPreco ? 'Kg liberados x preço do kg (' . $e($fmtMoeda($preco)) . ')' : 'Informe o preço do kg da ração no cadastro do pet' ?>">
+                        <small>Gasto com ração</small><strong><?= $temPreco ? $e($fmtMoeda($custoTotal)) : '—' ?></strong>
                     </div>
                     <div class="stat"><small>Média/refeição</small><strong><?= (int) $media ?> g</strong></div>
                 </div>

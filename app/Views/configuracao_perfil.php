@@ -80,7 +80,7 @@ $v   = static fn (string $k): string => $e($old[$k] ?? '');
 
             <div class="grupo-cab"><b>Ações</b> Salve ou cancele as alterações.</div>
             <section class="caixa acoes-cfg">
-                <p>Seus dados são usados para identificar sua conta no PetFeeder.</p>
+                <p>Seus dados são usados para identificar sua conta no PetSync.</p>
                 <div style="display: flex; gap: 10px">
                     <a class="btn btn-sec" href="/configuracao">Cancelar</a>
                     <button type="submit" class="btn">Salvar alterações</button>

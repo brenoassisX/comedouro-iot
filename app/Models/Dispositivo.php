@@ -130,6 +130,22 @@ class Dispositivo
         $stmt->execute([':id' => $id, ':usuario_id' => $usuarioId]);
     }
 
+    /**
+     * Faixas do nível de ração (em % vindos do sensor):
+     *   0 a 20  -> Nível Baixo | 21 a 60 -> Nível Médio | 61 ou mais -> Nível Alto
+     * 'barra' = largura (%) da barra da tela, fixa por faixa.
+     */
+    public static function faixaNivel(?int $nivel): array
+    {
+        if ($nivel === null || $nivel <= 20) {
+            return ['texto' => 'Nível Baixo', 'classe' => 'baixo', 'barra' => $nivel === null ? 0 : 20];
+        }
+        if ($nivel <= 60) {
+            return ['texto' => 'Nível Médio', 'classe' => 'medio', 'barra' => 60];
+        }
+        return ['texto' => 'Nível Alto', 'classe' => 'alto', 'barra' => 100];
+    }
+
     /** Transforma a linha do banco nos textos mostrados na tela Dispositivos. */
     public static function status(array $d): array
     {
@@ -137,15 +153,9 @@ class Dispositivo
         $online = $ping !== false && (time() - $ping) <= self::SEGUNDOS_ONLINE;
         $nivel  = $d['nivel_racao'] !== null ? (int) $d['nivel_racao'] : null;
 
-        if ($nivel === null) {
-            $reservatorio = 'Sem leitura';
-        } elseif ($nivel === 0) {
-            $reservatorio = 'Vazio';
-        } elseif ($nivel <= 20) {
-            $reservatorio = 'Pouca ração';
-        } else {
-            $reservatorio = 'Com ração';
-        }
+        // Nível em 3 faixas (o sensor mede em %, o usuário vê só Baixo / Médio / Alto)
+        $faixa = self::faixaNivel($nivel);
+        $reservatorio = $nivel === null ? 'Sem leitura' : $faixa['texto'];
 
         return [
             'online'        => $online,
@@ -154,7 +164,9 @@ class Dispositivo
             'reservatorio'  => $reservatorio,
             'conexao'       => $online ? 'Wi-Fi conectado' : 'Desconectado',
             'nivel'         => $nivel,
-            'peso'          => isset($d['peso_tigela_g']) ? (float) $d['peso_tigela_g'] : null,
+            'nivel_texto'   => $nivel === null ? 'Sem leitura' : $faixa['texto'],
+            'nivel_classe'  => $faixa['classe'],
+            'nivel_barra'   => $faixa['barra'],
             'codigo'        => 'ESP32-' . str_pad((string) $d['id'], 3, '0', STR_PAD_LEFT),
         ];
     }

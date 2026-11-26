@@ -1,5 +1,5 @@
 -- =====================================================================
--- Comedouro IoT - Schema MySQL 8+ (InnoDB / utf8mb4)
+-- PetSync - Schema MySQL 8+ (InnoDB / utf8mb4)
 -- =====================================================================
 CREATE DATABASE IF NOT EXISTS comedouro_iot
     CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

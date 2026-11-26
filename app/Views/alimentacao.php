@@ -45,7 +45,8 @@ require __DIR__ . '/partials/app_head.php';
                     <?php $hora = substr((string) $h['horario'], 0, 5); ?>
                     <div class="tab-linha tab-item">
                         <span><?= $e($hora) ?></span>
-                        <span><?= (int) $h['porcao_g'] ?> g</span>
+                        <?php $nomeP = \App\Models\Porcao::nomePorGramas($porcoes, (int) $h['porcao_g']); ?>
+                        <span><?= $nomeP !== null ? $e($nomeP) . ' · ' : '' ?><?= (int) $h['porcao_g'] ?> g</span>
                         <span class="tab-acoes">
                             <a class="icon-btn" href="/alimentacao/editar?id=<?= (int) $h['id'] ?>" aria-label="Editar horário das <?= $e($hora) ?>"><svg aria-hidden="true"><use href="#i-lapis"/></svg></a>
                             <form action="/alimentacao/excluir" method="POST" data-confirmar="Excluir o horário das <?= $e($hora) ?>?">
@@ -64,15 +65,10 @@ require __DIR__ . '/partials/app_head.php';
                     'pendente'   => 'Aguardando o comedouro',
                     'enviado'    => 'Pedido recebido pelo comedouro',
                     'concluido'  => 'Concluída',
-                    'dispensado' => 'Dispensada: a tigela já estava cheia',
+                    'dispensado' => 'Dispensada',
                     'falha'      => 'Falhou',
                 ];
-                $fmtG  = static fn ($v): string => $v === null ? '—' : (int) round((float) $v) . ' g';
-                // Sobra na tigela = o que havia depois de liberar menos o que foi consumido (só com leitura da balança)
-                $sobra = ($ultima !== null && $ultima['peso_depois_g'] !== null && $ultima['consumido_g'] !== null)
-                    ? max(0.0, (float) $ultima['peso_depois_g'] - (float) $ultima['consumido_g']) : null;
-                // Já havia na tigela quando o pedido chegou (leituras negativas = ruído da balança)
-                $jaNaTigela = ($ultima !== null && $ultima['peso_antes_g'] !== null) ? max(0.0, (float) $ultima['peso_antes_g']) : null;
+                $nomeUltima = $ultima !== null ? \App\Models\Porcao::nomePorGramas($porcoes, (int) $ultima['porcao_g']) : null;
             ?>
             <section class="caixa manual" aria-labelledby="t-manual">
                 <h3 id="t-manual">Alimentação manual</h3>
@@ -81,18 +77,16 @@ require __DIR__ . '/partials/app_head.php';
                 <form class="manual-form" action="/alimentacao/liberar" method="POST">
                     <input type="hidden" name="dispositivo_id" value="<?= (int) $atual['id'] ?>">
                     <div class="manual-campo">
-                        <label for="quantidade_manual">Quantidade (g)</label>
-                        <input class="input-cfg" type="number" id="quantidade_manual" name="quantidade" min="1" max="2000" step="1" inputmode="numeric"
-                               data-plano="estimativaManual"
-                               data-nivel="<?= $atual['nivel_racao'] !== null ? (int) $atual['nivel_racao'] : '' ?>"
-                               data-g90-vazio="<?= (float) $atual['servo_g90_vazio'] ?>"
-                               data-g90-cheio="<?= (float) $atual['servo_g90_cheio'] ?>"
-                               value="<?= (int) ($atual['porcao_padrao_g'] ?? 50) ?>">
+                        <label for="porcao_manual">Porção</label>
+                        <select class="input-cfg" id="porcao_manual" name="porcao">
+                            <?php foreach ($porcoes as $chave => $p): ?>
+                                <option value="<?= $e($chave) ?>"<?= $chave === 'media' ? ' selected' : '' ?>><?= $e($p['nome']) ?> (<?= (int) $p['gramas'] ?> g)</option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <button type="submit" class="btn"><svg aria-hidden="true"><use href="#i-mais"/></svg>Liberar agora</button>
                 </form>
-                <p class="ajuda">A tigela é <strong>completada</strong> até a quantidade pedida: se já houver ração, só a diferença é liberada (margem de erro da balança: 5 g). Se a tigela já estiver cheia, nada é liberado.</p>
-                <p class="ajuda" id="estimativaManual" aria-live="polite"></p>
+                <p class="ajuda">O comedouro abre a comporta o suficiente para liberar a quantidade da porção escolhida e fecha em seguida.</p>
 
                 <?php if ($ultima !== null): ?>
                     <div class="ultima" aria-live="polite">
@@ -101,20 +95,32 @@ require __DIR__ . '/partials/app_head.php';
                             <span class="ultima-status<?= $ultima['status'] === 'concluido' ? ' ok' : '' ?>"><?= $e($statusTextos[$ultima['status']] ?? $ultima['status']) ?></span>
                         </div>
                         <div class="ultima-grade">
-                            <div><small>Pedida (alvo)</small><strong><?= (int) $ultima['porcao_g'] ?> g</strong></div>
-                            <div><small>Já na tigela</small><strong><?= $e($fmtG($jaNaTigela)) ?></strong></div>
-                            <div><small>Enviada ao motor</small><strong><?= $e($fmtG($ultima['enviado_g'])) ?></strong></div>
-                            <div><small>Liberada (medida)</small><strong><?= $e($fmtG($ultima['liberado_g'])) ?></strong></div>
-                            <div><small>Consumida</small><strong><?= $e($fmtG($ultima['consumido_g'])) ?></strong></div>
-                            <div><small>Sobra na tigela</small><strong><?= $e($fmtG($sobra)) ?></strong></div>
+                            <div><small>Porção</small><strong><?= $nomeUltima !== null ? $e($nomeUltima) : '—' ?></strong></div>
+                            <div><small>Quantidade</small><strong><?= (int) $ultima['porcao_g'] ?> g</strong></div>
+                            <?php if ($ultima['angulo_graus'] !== null): ?>
+                                <div><small>Comporta</small><strong><?= (int) $ultima['pulsos'] ?> × <?= (int) $ultima['angulo_graus'] ?>°</strong></div>
+                            <?php endif; ?>
                         </div>
-                        <?php if ($ultima['angulo_graus'] !== null): ?>
-                            <p class="ajuda">Comporta: <?= (int) $ultima['pulsos'] ?> abertura(s) de <?= (int) $ultima['angulo_graus'] ?>° planejada(s) pelo sistema.</p>
-                        <?php endif; ?>
-                        <p class="ajuda">Liberada, consumida e sobra vêm da balança da tigela (por até 60 min depois de liberar). Sem leitura de peso aparece "—".</p>
                     </div>
                 <?php endif; ?>
             </section>
+
+            <section class="caixa" aria-labelledby="t-porcoes">
+                <h3 id="t-porcoes">Tamanhos das porções</h3>
+                <p>Troque o nome e a quantidade de cada tamanho. Eles aparecem na alimentação manual e nos horários.</p>
+                <form action="/alimentacao/porcoes" method="POST" novalidate>
+                    <input type="hidden" name="dispositivo_id" value="<?= (int) $atual['id'] ?>">
+                    <div class="tab-linha tab-cab"><span>Nome</span><span>Gramas</span><span class="tab-acoes">Comporta</span></div>
+                    <?php foreach ($porcoes as $chave => $p): ?>
+                        <div class="tab-linha tab-item">
+                            <span><input class="input-cfg" type="text" name="nome_<?= $e($chave) ?>" maxlength="30" required value="<?= $e($p['nome']) ?>" aria-label="Nome do tamanho <?= $e($chave) ?>"></span>
+                            <span><input class="input-cfg" type="number" name="gramas_<?= $e($chave) ?>" min="1" max="500" step="1" inputmode="numeric" required value="<?= (int) $p['gramas'] ?>" aria-label="Gramas do tamanho <?= $e($chave) ?>"></span>
+                            <span class="tab-acoes">≈ <?= $e(\App\Models\Porcao::anguloTexto((int) $p['gramas'], $atual)) ?></span>
+                        </div>
+                    <?php endforeach; ?>
+                    <p class="ajuda">Cada abertura é de 30° e libera cerca de 20 g; porções maiores repetem a abertura, com 6 s de intervalo entre elas. Horários já criados guardam a quantidade de quando foram salvos.</p>
+                    <button type="submit" class="btn">Salvar porções</button>
+                </form>
+            </section>
         <?php endif; ?>
-<script src="/assets/plano.js"></script>
 <?php require __DIR__ . '/partials/app_foot.php'; ?>

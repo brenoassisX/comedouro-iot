@@ -6,6 +6,7 @@ declare(strict_types=1);
  * Mesmas variáveis da tela de relatórios.
  */
 $e     = static fn ($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+$fmtMoeda = static fn (float $v): string => 'R$ ' . number_format($v, 2, ',', '.');
 $fmtPeso = static fn (float $g): string => $g >= 1000 ? rtrim(rtrim(number_format($g / 1000, 2, ',', ''), '0'), ',') . ' kg' : (int) round($g) . ' g';
 $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Personalizado'];
 ?>
@@ -14,13 +15,13 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Relatório de alimentação<?= $petAtual ? ' - ' . $e($petAtual['nome']) : '' ?> | PetFeeder</title>
+    <title>Relatório de alimentação<?= $petAtual ? ' - ' . $e($petAtual['nome']) : '' ?> | PetSync</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; padding: 32px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1E1E24; }
         header { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 2px solid #C4694F; }
-        header img { width: 56px; }
+        header img { height: 44px; width: auto; }
         h1 { margin: 0; font-size: 1.6rem; } header p { margin: 2px 0 0; color: #55555C; font-size: .9rem; }
         .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0; }
         .resumo div { padding: 14px; text-align: center; background: #F4EADE; border-radius: 12px; }
@@ -41,7 +42,7 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
     <div class="acoes"><button type="button" onclick="window.print()">Imprimir / Salvar como PDF</button></div>
 
     <header>
-        <img src="/assets/logo.svg" alt="">
+        <img src="/assets/logo-horizontal.svg" alt="PetSync">
         <div>
             <h1>Relatório de alimentação</h1>
             <p>
@@ -59,19 +60,19 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
         <section class="resumo">
             <div><small>Total de refeições</small><strong><?= (int) $total ?></strong></div>
             <div><small>Ração liberada</small><strong><?= $e($fmtPeso($liberado)) ?></strong></div>
-            <div><small>Ração consumida</small><strong><?= $temConsumo ? $e($fmtPeso($consumido)) : '—' ?></strong></div>
+            <div><small>Gasto com ração<?= $temPreco ? ' (' . $e($fmtMoeda($preco)) . '/kg)' : '' ?></small><strong><?= $temPreco ? $e($fmtMoeda($custoTotal)) : '—' ?></strong></div>
             <div><small>Média liberada por refeição</small><strong><?= (int) $media ?> g</strong></div>
         </section>
 
         <table>
-            <thead><tr><th>Data</th><th class="n">Refeições</th><th class="n">Liberada (g)</th><th class="n">Consumida (g)</th><th>Frequência</th></tr></thead>
+            <thead><tr><th>Data</th><th class="n">Refeições</th><th class="n">Liberada (g)</th><th class="n">Custo</th><th>Frequência</th></tr></thead>
             <tbody>
                 <?php foreach ($dias as $d): ?>
                     <tr>
                         <td><?= $e($d['data']) ?></td>
                         <td class="n"><?= (int) $d['refeicoes'] ?></td>
                         <td class="n"><?= (int) round($d['liberado']) ?></td>
-                        <td class="n"><?= $d['medidas'] > 0 ? (int) round($d['consumido']) : '—' ?></td>
+                        <td class="n"><?= $temPreco ? $e($fmtMoeda($d['custo'])) : '—' ?></td>
                         <td><span class="barra" style="width: <?= round($d['refeicoes'] / $topo * 160) ?>px"></span></td>
                     </tr>
                 <?php endforeach; ?>
@@ -79,7 +80,7 @@ $nomes = ['semanal' => 'Semanal', 'mensal' => 'Mensal', 'personalizado' => 'Pers
         </table>
     <?php endif; ?>
 
-    <p class="rodape">Gerado em <?= date('d/m/Y H:i') ?> · PetFeeder</p>
+    <p class="rodape">Gerado em <?= date('d/m/Y H:i') ?> · PetSync</p>
 
     <script>window.addEventListener('load', function () { window.print(); });</script>
 </body>

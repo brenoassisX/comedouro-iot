@@ -34,8 +34,8 @@ Amarelo - D13 ESP32
 Sensor
 Azul - Positivo protoboard
 Preto - GND/Negativo protoboard
-Laranja - Trig - D18 Esp32
-Vermelho - Echo - D5 Esp32
+Laranja - Trig - D5 Esp32
+Vermelho - Echo - D18 Esp32
 
 Balança
 

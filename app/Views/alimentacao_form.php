@@ -38,17 +38,16 @@ $voltar = '/alimentacao?dispositivo=' . (int) $dispositivo['id'];
                 </div>
 
                 <div class="c6">
-                    <label for="quantidade">Quantidade (g)</label>
+                    <label for="porcao">Porção</label>
                     <div class="campo">
                         <svg class="icone" aria-hidden="true"><use href="#i-balanca"/></svg>
-                        <input type="number" id="quantidade" name="quantidade" min="1" max="2000" step="1" inputmode="numeric" placeholder="Ex: 50" required value="<?= $e($old['quantidade'] ?? '') ?>"
-                               data-plano="estimativa"
-                               data-nivel="<?= $dispositivo['nivel_racao'] !== null ? (int) $dispositivo['nivel_racao'] : '' ?>"
-                               data-g90-vazio="<?= (float) $dispositivo['servo_g90_vazio'] ?>"
-                               data-g90-cheio="<?= (float) $dispositivo['servo_g90_cheio'] ?>">
+                        <select id="porcao" name="porcao" required>
+                            <?php foreach ($porcoes as $chave => $p): ?>
+                                <option value="<?= $e($chave) ?>"<?= ($old['porcao'] ?? 'media') === $chave ? ' selected' : '' ?>><?= $e($p['nome']) ?> (<?= (int) $p['gramas'] ?> g)</option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <p class="ajuda">É o quanto deve haver na tigela: se já tiver ração, o comedouro libera só o que falta. Sugestão: a porção calculada no perfil do pet.</p>
-                    <p class="ajuda" id="estimativa" aria-live="polite"></p>
+                    <p class="ajuda">Os nomes e as quantidades podem ser alterados na tela Alimentação, em "Tamanhos das porções".</p>
                 </div>
             </div>
 
@@ -57,5 +56,4 @@ $voltar = '/alimentacao?dispositivo=' . (int) $dispositivo['id'];
                 <a class="btn btn-sec" href="<?= $e($voltar) ?>">Cancelar</a>
             </div>
         </form>
-<script src="/assets/plano.js"></script>
 <?php require __DIR__ . '/partials/app_foot.php'; ?>

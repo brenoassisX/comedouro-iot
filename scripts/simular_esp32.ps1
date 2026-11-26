@@ -1,5 +1,5 @@
 <#
-  PetFeeder - simula UMA sincronizacao do ESP32 (para testar o servidor sem o hardware)
+  PetSync - simula UMA sincronizacao do ESP32 (para testar o servidor sem o hardware)
 
   Uso (com o servidor ligado), na pasta do projeto:
     powershell -ExecutionPolicy Bypass -File scripts\simular_esp32.ps1 -Mac 'AA:BB:CC:DD:EE:FF' -Distancia 15 -Peso 0

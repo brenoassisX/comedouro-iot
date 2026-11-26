@@ -251,9 +251,9 @@ class DispositivoController
         $cheio = str_replace(',', '.', trim((string) ($_POST['cheio_cm'] ?? '5')));
         $vazio = str_replace(',', '.', trim((string) ($_POST['vazio_cm'] ?? '25')));
         // Calibração da comporta (servo): gramas por abertura de 90° e tempo aberta
-        $g90v     = str_replace(',', '.', trim((string) ($_POST['g90_vazio'] ?? '100')));
-        $g90c     = str_replace(',', '.', trim((string) ($_POST['g90_cheio'] ?? '150')));
-        $abertura = trim((string) ($_POST['abertura_ms'] ?? '600'));
+        $g90v     = str_replace(',', '.', trim((string) ($_POST['g90_vazio'] ?? '60')));
+        $g90c     = str_replace(',', '.', trim((string) ($_POST['g90_cheio'] ?? '60')));
+        $abertura = trim((string) ($_POST['abertura_ms'] ?? '300'));
         $erro  = '';
 
         if ($nome === '' || strlen($nome) > 80) {
@@ -276,9 +276,9 @@ class DispositivoController
                 'nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => $petId > 0 ? $petId : null,
                 'cheio_cm' => is_numeric($cheio) ? (float) $cheio : 5.0,
                 'vazio_cm' => is_numeric($vazio) ? (float) $vazio : 25.0,
-                'g90_vazio' => is_numeric($g90v) ? (float) $g90v : 100.0,
-                'g90_cheio' => is_numeric($g90c) ? (float) $g90c : 150.0,
-                'abertura_ms' => ctype_digit($abertura) ? (int) $abertura : 600,
+                'g90_vazio' => is_numeric($g90v) ? (float) $g90v : 60.0,
+                'g90_cheio' => is_numeric($g90c) ? (float) $g90c : 60.0,
+                'abertura_ms' => ctype_digit($abertura) ? (int) $abertura : 300,
             ],
             ['nome' => $nome, 'codigo_mac_esp' => $mac, 'pet_id' => (string) $petId, 'cheio_cm' => $cheio, 'vazio_cm' => $vazio,
              'g90_vazio' => $g90v, 'g90_cheio' => $g90c, 'abertura_ms' => $abertura],

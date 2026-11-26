@@ -1,5 +1,5 @@
 -- =====================================================================
--- PetFeeder - INSTALAÇÃO COMPLETA do banco (para um computador novo)
+-- PetSync - INSTALAÇÃO COMPLETA do banco (para um computador novo)
 --
 -- Junta, na ordem certa: schema.sql + migrações 05, 06, 07, 08, 09, 10 e 11.
 -- (As migrações 01 a 04 eram de funcionalidades retiradas e ficam de fora.)
@@ -376,4 +376,64 @@ ALTER TABLE historico
 
 -- Conferir:
 -- SELECT id, porcao_g, enviado_g, angulo_graus, pulsos, liberado_g FROM historico ORDER BY id DESC LIMIT 10;
+
+
+-- ===== 12_porcoes_e_nivel.sql =====
+-- =====================================================================
+-- 12: porções Baixa/Média/Alta (editáveis pelo usuário) e nova calibração da comporta
+-- (Pré-requisito: migrações 05 a 11 já importadas. Rode com o banco comedouro_iot selecionado.)
+--
+-- 1) Nova calibração do servo: a 40° a comporta libera ~25 g  ->  a 90° ~56 g (proporcional).
+--    Os dois valores (reservatório vazio/cheio) ficam iguais; dá para ajustar em Dispositivos > Editar.
+-- 2) Tabela porcoes: cada usuário tem 3 tamanhos (baixa, media, alta) com NOME e GRAMAS editáveis.
+--    As linhas são criadas sozinhas na primeira vez que o usuário abre a tela Alimentação.
+-- =====================================================================
+
+ALTER TABLE dispositivos
+    MODIFY servo_g90_vazio DECIMAL(6,1) NOT NULL DEFAULT 56.3,
+    MODIFY servo_g90_cheio DECIMAL(6,1) NOT NULL DEFAULT 56.3;
+
+UPDATE dispositivos SET servo_g90_vazio = 56.3, servo_g90_cheio = 56.3;
+
+CREATE TABLE IF NOT EXISTS porcoes (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    usuario_id  INT UNSIGNED NOT NULL,
+    chave       ENUM('baixa','media','alta') NOT NULL,
+    nome        VARCHAR(30) NOT NULL,                 -- termo mostrado ao usuário (ex.: "Baixa", "Petisco")
+    gramas      SMALLINT UNSIGNED NOT NULL,           -- quantidade liberada neste tamanho
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_porcoes_usuario_chave (usuario_id, chave),
+    CONSTRAINT fk_porcoes_usuario FOREIGN KEY (usuario_id)
+        REFERENCES usuarios (id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Conferir:
+-- SELECT * FROM porcoes;
+-- SELECT id, servo_g90_vazio, servo_g90_cheio FROM dispositivos;
+ALTER TABLE dispositivos MODIFY servo_abertura_ms SMALLINT UNSIGNED NOT NULL DEFAULT 300;
+UPDATE dispositivos SET servo_abertura_ms = 300;
+
+-- ===== 14_porcoes_30g.sql =====
+ALTER TABLE dispositivos
+    MODIFY servo_g90_vazio DECIMAL(6,1) NOT NULL DEFAULT 90.0,
+    MODIFY servo_g90_cheio DECIMAL(6,1) NOT NULL DEFAULT 90.0;
+UPDATE dispositivos SET servo_g90_vazio = 90.0, servo_g90_cheio = 90.0;
+
+UPDATE porcoes SET nome = 'Pequena', gramas = 30 WHERE chave = 'baixa';
+UPDATE porcoes SET nome = 'Média',   gramas = 60 WHERE chave = 'media';
+UPDATE porcoes SET nome = 'Grande',  gramas = 90 WHERE chave = 'alta';
+
+-- ===== 15_porcoes_20g.sql =====
+ALTER TABLE dispositivos
+    MODIFY servo_g90_vazio DECIMAL(6,1) NOT NULL DEFAULT 60.0,
+    MODIFY servo_g90_cheio DECIMAL(6,1) NOT NULL DEFAULT 60.0;
+UPDATE dispositivos SET servo_g90_vazio = 60.0, servo_g90_cheio = 60.0;
+
+UPDATE porcoes SET nome = 'Pequena', gramas = 20 WHERE chave = 'baixa';
+UPDATE porcoes SET nome = 'Média',   gramas = 40 WHERE chave = 'media';
+UPDATE porcoes SET nome = 'Grande',  gramas = 60 WHERE chave = 'alta';
+
+-- ===== 16_preco_racao.sql =====
+ALTER TABLE pets
+    ADD COLUMN preco_kg_racao DECIMAL(8,2) NULL AFTER peso_kg;   -- R$ por kg (opcional)
 

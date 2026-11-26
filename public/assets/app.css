@@ -1,5 +1,5 @@
 /* =========================================================
-   PetFeeder - estilos do sistema logado (fiel aos protótipos do Figma)
+   PetSync - estilos do sistema logado (fiel aos protótipos do Figma)
    Fonte: Plus Jakarta Sans em tudo. Usado por partials/app_head.php
    ========================================================= */
 :root {
@@ -34,9 +34,10 @@ a { color: inherit; }
     padding: clamp(14px, 2vw, 34px) clamp(12px, 1.5vw, 26px);
     background: var(--lateral); border-right: 1px solid #6E655C;
 }
-.logo { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: clamp(14px, 2vw, 30px); text-decoration: none; }
-.logo img { width: clamp(70px, 7.4vw, 124px); height: auto; display: block; }
-.logo span { font-size: clamp(1.45rem, 2.3vw, 2.4rem); font-weight: 800; letter-spacing: -.02em; color: #26262B; line-height: 1.1; }
+.logo { display: flex; justify-content: center; margin-bottom: clamp(14px, 2vw, 30px); text-decoration: none; }
+.logo img { height: auto; }
+.logo .logo-vertical { display: block; width: clamp(150px, 14vw, 250px); max-width: 100%; }
+.logo .logo-horizontal { display: none; }
 
 .menu { display: flex; flex-direction: column; gap: 4px; padding: 8px; background: var(--bege); border-radius: 16px; }
 .item {
@@ -215,7 +216,10 @@ label { display: block; margin-bottom: 6px; font-size: .68rem; font-weight: 800;
 .nivel-card h2 { margin-bottom: 14px; font-size: clamp(1.1rem, 1.6vw, 1.5rem); font-weight: 700; }
 .barra-trilho { height: 22px; overflow: hidden; background: #E9E3DC; border-radius: 12px; }
 .barra-preench { height: 100%; background: var(--terracota); border-radius: 12px; }
-.nivel-pct { margin-top: 6px; text-align: right; font-size: .85rem; }
+.nivel-pct { margin-top: 6px; text-align: right; font-size: .95rem; font-weight: 700; }
+.barra-preench.nivel-baixo { background: #C0392B; }
+.barra-preench.nivel-medio { background: #E0A030; }
+.barra-preench.nivel-alto  { background: var(--verde, #486B5D); }
 .status-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; text-align: center; }
 .status-grid small { display: block; margin-bottom: 8px; font-size: .8rem; color: #55555C; }
 .status-grid strong { font-size: .85rem; font-weight: 700; }
@@ -370,9 +374,9 @@ a.notif:focus-visible { outline: 3px solid var(--escuro); outline-offset: 2px; }
 @media (max-width: 860px) {
     .casca { grid-template-columns: 1fr; }
     .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px; border-right: 0; border-bottom: 1px solid #6E655C; }
-    .logo { flex-direction: row; margin: 0; gap: 8px; }
-    .logo img { width: 44px; }
-    .logo span { font-size: 1.3rem; }
+    .logo { margin: 0; }
+    .logo .logo-vertical { display: none; }
+    .logo .logo-horizontal { display: block; width: auto; height: 30px; }
     .btn-sair { margin: 0 0 0 auto; padding: 8px 16px; }
     .menu { order: 3; flex: 1 0 100%; flex-direction: row; overflow-x: auto; }
     .item { white-space: nowrap; padding: 9px 12px; }

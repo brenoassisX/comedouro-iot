@@ -161,7 +161,7 @@ class ApiController
             $anterior = $dispositivo['nivel_anterior'] !== null ? (int) $dispositivo['nivel_anterior'] : null;
             if ($nivel !== null && $nivel <= self::NIVEL_BAIXO && ($anterior === null || $anterior > self::NIVEL_BAIXO)) {
                 $this->avisar($usuarioId, $dispositivoId, 'nivel', 'Ração baixa',
-                    'O reservatório de ' . $dispositivo['nome'] . ' está com ' . $nivel . '% de ração.',
+                    'O reservatório de ' . $dispositivo['nome'] . ' está com nível baixo de ração. Reabasteça em breve.',
                     '/dispositivos?id=' . $dispositivoId, 'nivel:' . $dispositivoId . ':' . $hoje);
             }
 

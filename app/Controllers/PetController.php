@@ -212,6 +212,7 @@ class PetController
             'idade'         => $idade,
             'unidade_idade' => $unidade,
             'peso'          => $pet['peso_kg'] !== null ? rtrim(rtrim((string) $pet['peso_kg'], '0'), '.') : '',
+            'preco'         => $pet['preco_kg_racao'] !== null ? number_format((float) $pet['preco_kg_racao'], 2, '.', '') : '',
             'observacoes'   => $pet['observacoes'] ?? '',
         ];
 
@@ -354,6 +355,7 @@ class PetController
         $unidade = (string) ($_POST['unidade_idade'] ?? 'anos');
         $peso    = str_replace(',', '.', trim((string) ($_POST['peso'] ?? '')));
         $obs     = trim((string) ($_POST['observacoes'] ?? ''));
+        $preco   = str_replace(',', '.', trim((string) ($_POST['preco_kg'] ?? '')));   // opcional
 
         // Idade sempre em MESES no banco (-1 = valor inválido)
         $idadeMeses = is_numeric($idade) ? (int) round((float) $idade * ($unidade === 'meses' ? 1 : 12)) : -1;
@@ -372,6 +374,8 @@ class PetController
             $erro = 'Informe uma idade válida (de 0 a 30 anos).';
         } elseif (!is_numeric($peso) || (float) $peso < 0.1 || (float) $peso > 120) {
             $erro = 'Informe um peso válido, entre 0,1 e 120 kg.';
+        } elseif ($preco !== '' && (!is_numeric($preco) || (float) $preco < 0 || (float) $preco > 9999)) {
+            $erro = 'Informe um preço válido para o kg da ração (de 0 a 9999) ou deixe em branco.';
         } elseif (strlen($obs) > 500) {
             $erro = 'As observações podem ter no máximo 500 caracteres.';
         }
@@ -383,11 +387,12 @@ class PetController
             'porte'       => $porte,
             'idade_meses' => $idadeMeses,
             'peso_kg'     => is_numeric($peso) ? number_format((float) $peso, 2, '.', '') : '0',
+            'preco_kg_racao' => ($preco !== '' && is_numeric($preco)) ? number_format((float) $preco, 2, '.', '') : null,
             'observacoes' => $obs,
         ];
         $old = [
             'nome' => $nome, 'especie' => $especie, 'raca' => $raca, 'porte' => $porte,
-            'idade' => $idade, 'unidade_idade' => $unidade, 'peso' => $peso, 'observacoes' => $obs,
+            'idade' => $idade, 'unidade_idade' => $unidade, 'peso' => $peso, 'preco' => $preco, 'observacoes' => $obs,
         ];
 
         return [$erro, $dados, $old];

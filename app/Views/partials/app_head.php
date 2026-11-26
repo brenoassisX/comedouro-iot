@@ -12,7 +12,7 @@
 // SEMPRE redefine $e: nos controllers, $e também é usado nos blocos catch (PDOException $e) e,
 // se já existisse, o $e ?? ... manteria a exceção em vez da função e quebraria a página.
 $e         = static fn ($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$titulo    = $titulo ?? 'PetFeeder';
+$titulo    = $titulo ?? 'PetSync';
 $menuAtivo = $menuAtivo ?? '';
 $extraHead = $extraHead ?? '';
 
@@ -34,7 +34,7 @@ $menu = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $e($titulo) ?> | PetFeeder</title>
+    <title><?= $e($titulo) ?> | PetSync</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -81,9 +81,9 @@ $menu = [
 
     <!-- ============ Menu lateral (igual em todas as telas) ============ -->
     <aside class="sidebar">
-        <a class="logo" href="/painel" aria-label="PetFeeder - Início">
-            <img src="/assets/logo.svg" alt="">
-            <span>PetFeeder</span>
+        <a class="logo" href="/painel" aria-label="PetSync - Início">
+            <img class="logo-vertical" src="/assets/logo.svg" alt="PetSync">
+            <img class="logo-horizontal" src="/assets/logo-horizontal.svg" alt="" aria-hidden="true">
         </a>
 
         <nav class="menu" aria-label="Menu principal">

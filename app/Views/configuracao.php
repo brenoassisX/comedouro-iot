@@ -44,7 +44,7 @@ require __DIR__ . '/partials/app_head.php';
                         </label>
                     </div>
                     <div class="pref">
-                        <div><strong>Alertas de alimentação</strong><span>Avisos sobre consumo e nível de ração</span></div>
+                        <div><strong>Alertas de alimentação</strong><span>Avisos sobre o nível de ração</span></div>
                         <label class="toggle">
                             <input type="checkbox" name="notif_alertas" value="1"<?= (int) $usuario['notif_alertas'] === 1 ? ' checked' : '' ?> aria-label="Alertas de consumo e nível de ração">
                             <span class="toggle-trilho"></span>

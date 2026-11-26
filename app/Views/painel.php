@@ -105,7 +105,7 @@ $portes = ['pequeno' => 'Pequeno', 'medio' => 'Médio', 'grande' => 'Grande'];
                 <section class="caixa mini-card" aria-label="Ração restante">
                     <h3>Ração restante</h3>
                     <?php if ($status !== null && $status['nivel'] !== null): ?>
-                        <p class="mini-valor"><?= (int) $status['nivel'] ?>%</p>
+                        <p class="mini-valor"><?= $e($status['nivel_texto']) ?></p>
                         <p class="mini-sub">No reservatório</p>
                     <?php else: ?>
                         <p class="mini-valor">—</p>

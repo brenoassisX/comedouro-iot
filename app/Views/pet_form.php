@@ -105,6 +105,15 @@ $marcado    = static fn (string $k, string $valor, string $padrao = ''): string 
                         </div>
                     </div>
 
+                    <div class="c4">
+                        <label for="preco_kg">Preço do kg da ração (R$)</label>
+                        <div class="campo">
+                            <svg class="icone" aria-hidden="true"><use href="#i-balanca"/></svg>
+                            <input type="number" id="preco_kg" name="preco_kg" min="0" max="9999" step="0.01" inputmode="decimal" placeholder="Ex: 28,90" value="<?= $v('preco') ?>">
+                        </div>
+                        <p class="ajuda">Opcional. Usado para calcular o gasto com ração nos relatórios.</p>
+                    </div>
+
                     <div class="c12">
                         <label for="observacoes">Observações</label>
                         <div class="campo">

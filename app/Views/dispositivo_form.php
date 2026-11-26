@@ -75,7 +75,7 @@ $voltar  = $modo === 'editar' ? '/dispositivos?id=' . (int) $id : '/dispositivos
                         <svg class="icone" aria-hidden="true"><use href="#i-regua"/></svg>
                         <input type="number" id="cheio_cm" name="cheio_cm" min="1" max="200" step="0.1" inputmode="decimal" required value="<?= $e($old['cheio_cm'] ?? '5') ?>">
                     </div>
-                    <p class="ajuda">100% — ração quase encostando no sensor.</p>
+                    <p class="ajuda">Reservatório cheio: ração quase encostando no sensor.</p>
                 </div>
 
                 <div class="c6">
@@ -84,19 +84,19 @@ $voltar  = $modo === 'editar' ? '/dispositivos?id=' . (int) $id : '/dispositivos
                         <svg class="icone" aria-hidden="true"><use href="#i-regua"/></svg>
                         <input type="number" id="vazio_cm" name="vazio_cm" min="1" max="200" step="0.1" inputmode="decimal" required value="<?= $e($old['vazio_cm'] ?? '25') ?>">
                     </div>
-                    <p class="ajuda">0% — fundo do reservatório.</p>
+                    <p class="ajuda">Reservatório vazio: distância até o fundo.</p>
                 </div>
 
                 <div class="c12">
                     <h3 style="font-size: .95rem; font-weight: 700">Calibração da comporta (servo)</h3>
-                    <p class="ajuda">O sistema converte a quantidade pedida em graus de abertura. Meça quanto cai em UMA abertura de 90° (pelo tempo informado abaixo) com o reservatório quase vazio e com ele cheio. Com mais ração em cima cai mais.</p>
+                    <p class="ajuda">O sistema converte a quantidade pedida em graus de abertura. Medido na prática: 1 abertura de 30° libera 20 g, o que equivale a 60 g a 90° (padrão 60 nos dois campos). Regra: gramas de UMA abertura de 30° × 3. Se medir outro valor, ajuste aqui.</p>
                 </div>
 
                 <div class="c4">
                     <label for="g90_vazio">Gramas a 90° (reservatório quase vazio)</label>
                     <div class="campo">
                         <svg class="icone" aria-hidden="true"><use href="#i-balanca"/></svg>
-                        <input type="number" id="g90_vazio" name="g90_vazio" min="10" max="1000" step="1" inputmode="numeric" required value="<?= $e($old['g90_vazio'] ?? '100') ?>">
+                        <input type="number" id="g90_vazio" name="g90_vazio" min="10" max="1000" step="0.1" inputmode="decimal" required value="<?= $e($old['g90_vazio'] ?? '60') ?>">
                     </div>
                 </div>
 
@@ -104,7 +104,7 @@ $voltar  = $modo === 'editar' ? '/dispositivos?id=' . (int) $id : '/dispositivos
                     <label for="g90_cheio">Gramas a 90° (reservatório cheio)</label>
                     <div class="campo">
                         <svg class="icone" aria-hidden="true"><use href="#i-balanca"/></svg>
-                        <input type="number" id="g90_cheio" name="g90_cheio" min="10" max="1000" step="1" inputmode="numeric" required value="<?= $e($old['g90_cheio'] ?? '150') ?>">
+                        <input type="number" id="g90_cheio" name="g90_cheio" min="10" max="1000" step="0.1" inputmode="decimal" required value="<?= $e($old['g90_cheio'] ?? '60') ?>">
                     </div>
                 </div>
 
@@ -112,9 +112,9 @@ $voltar  = $modo === 'editar' ? '/dispositivos?id=' . (int) $id : '/dispositivos
                     <label for="abertura_ms">Tempo aberta (ms)</label>
                     <div class="campo">
                         <svg class="icone" aria-hidden="true"><use href="#i-relogio"/></svg>
-                        <input type="number" id="abertura_ms" name="abertura_ms" min="100" max="3000" step="50" inputmode="numeric" required value="<?= $e($old['abertura_ms'] ?? '600') ?>">
+                        <input type="number" id="abertura_ms" name="abertura_ms" min="100" max="3000" step="50" inputmode="numeric" required value="<?= $e($old['abertura_ms'] ?? '300') ?>">
                     </div>
-                    <p class="ajuda">Quanto a comporta fica aberta antes de fechar rápido.</p>
+                    <p class="ajuda">Cada abertura é de 30°: abre, fica este tempo e fecha na hora (300 ms = rápido).</p>
                 </div>
             </div>
 

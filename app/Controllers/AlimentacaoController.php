@@ -6,6 +6,7 @@ namespace App\Controllers;
 use App\Models\Agendamento;
 use App\Models\Dispositivo;
 use App\Models\Historico;
+use App\Models\Porcao;
 use PDOException;
 use RuntimeException;
 
@@ -19,7 +20,8 @@ use RuntimeException;
  *   GET  /alimentacao/editar?id=      -> editar()
  *   POST /alimentacao/atualizar       -> atualizar()
  *   POST /alimentacao/excluir         -> excluir()
- *   POST /alimentacao/liberar         -> liberar()    (alimentação manual)
+ *   POST /alimentacao/liberar         -> liberar()    (alimentação manual: porção baixa/média/alta)
+ *   POST /alimentacao/porcoes         -> salvarPorcoes() (editar nomes e gramas das porções)
  *
  * IMPORTANTE: os horários ficam salvos no banco, mas só viram "pedidos" para o ESP32 quando a
  * parte do hardware (api/sincronizar) for ligada a eles. Já o "Liberar agora" cria o pedido na hora.
@@ -36,7 +38,9 @@ class AlimentacaoController
         'liberado'         => 'Refeição liberada! O comedouro serve na próxima sincronização (até 10 segundos).',
         'liberado_offline' => 'Pedido registrado, mas o comedouro está offline. Ele serve assim que voltar a se conectar.',
         'ja_pendente'      => 'Já existe uma liberação aguardando o comedouro. Aguarde ele servir.',
-        'quantidade_invalida' => 'Informe uma quantidade válida, de 1 a 2000 g.',
+        'quantidade_invalida' => 'Escolha uma porção válida.',
+        'porcoes_salvas'   => 'Porções atualizadas.',
+        'porcoes_invalidas' => 'Confira os nomes (até 30 letras) e as quantidades (1 a 500 g).',
     ];
 
     // ==================================================================
@@ -54,6 +58,7 @@ class AlimentacaoController
         $atual        = null;
         $horarios     = [];
         $ultima       = null;
+        $porcoes      = [];
         $sucesso      = self::MENSAGENS[(string) ($_GET['msg'] ?? '')] ?? '';
 
         try {
@@ -71,6 +76,7 @@ class AlimentacaoController
                 $horarios = Agendamento::listarPorDispositivo((int) $atual['id']);
                 $ultima   = Historico::ultima((int) $atual['id']);
             }
+            $porcoes = Porcao::doUsuario((int) $_SESSION['usuario_id']);
         } catch (PDOException $e) {
             error_log('[alimentacao] ' . $e->getMessage());
             $erro = 'Erro no banco de dados: ' . $e->getMessage(); // na apresentação final, mensagem genérica
@@ -97,7 +103,8 @@ class AlimentacaoController
         $modo = 'novo';
         $erro = '';
         $id   = null;
-        $old  = ['horario' => '', 'quantidade' => (string) ($dispositivo['porcao_padrao_g'] ?? 50)];
+        $old  = ['horario' => '', 'porcao' => 'media'];
+        $porcoes = $this->porcoesOuVazio();
         require BASE_PATH . '/app/Views/alimentacao_form.php';
     }
 
@@ -143,6 +150,7 @@ class AlimentacaoController
 
         $modo = 'novo';
         $id   = null;
+        $porcoes = $this->porcoesOuVazio();
         require BASE_PATH . '/app/Views/alimentacao_form.php';
     }
 
@@ -162,7 +170,14 @@ class AlimentacaoController
         $modo = 'editar';
         $erro = '';
         $id   = (int) $ag['id'];
-        $old  = ['horario' => substr((string) $ag['horario'], 0, 5), 'quantidade' => (string) (int) $ag['porcao_g']];
+        $porcoes = $this->porcoesOuVazio();
+        $chaveAtual = 'media';
+        foreach ($porcoes as $chave => $p) {
+            if ($p['gramas'] === (int) $ag['porcao_g']) {
+                $chaveAtual = $chave;
+            }
+        }
+        $old  = ['horario' => substr((string) $ag['horario'], 0, 5), 'porcao' => $chaveAtual];
         require BASE_PATH . '/app/Views/alimentacao_form.php';
     }
 
@@ -202,6 +217,7 @@ class AlimentacaoController
         }
 
         $modo = 'editar';
+        $porcoes = $this->porcoesOuVazio();
         require BASE_PATH . '/app/Views/alimentacao_form.php';
     }
 
@@ -257,14 +273,19 @@ class AlimentacaoController
         $dispositivoId = (int) $dispositivo['id'];
         $msg           = 'liberado';
 
-        // Quantidade pedida (X): o campo da tela. Em branco = porção padrão do pet (ou 50 g sem pet).
-        $quantidade = trim((string) ($_POST['quantidade'] ?? ''));
-        $padrao     = (int) ($dispositivo['porcao_padrao_g'] ?? 0);
-        $gramas     = $padrao > 0 ? $padrao : 50;
-        $valida     = true;
-        if ($quantidade !== '') {
-            $valida = ctype_digit($quantidade) && (int) $quantidade >= 1 && (int) $quantidade <= 2000;
-            $gramas = $valida ? (int) $quantidade : $gramas;
+        // Tamanho escolhido na tela (baixa / media / alta) -> gramas definidas pelo usuário
+        $chave  = (string) ($_POST['porcao'] ?? '');
+        $valida = in_array($chave, Porcao::CHAVES, true);
+        $gramas = 0;
+        if ($valida) {
+            try {
+                $gramas = Porcao::doUsuario((int) $_SESSION['usuario_id'])[$chave]['gramas'];
+            } catch (PDOException $e) {
+                error_log('[alimentacao/liberar] ' . $e->getMessage());
+                http_response_code(500);
+                echo 'Erro no banco de dados: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+                return;
+            }
         }
 
         try {
@@ -300,21 +321,87 @@ class AlimentacaoController
     // Funções de apoio
     // ==================================================================
 
-    /** Devolve [$erro, $horario 'HH:MM', $gramas, $old]. */
+    /** Devolve [$erro, $horario 'HH:MM', $gramas, $old]. O tamanho (baixa/media/alta) vira gramas. */
     private function lerFormulario(): array
     {
-        $horario    = trim((string) ($_POST['horario'] ?? ''));
-        $quantidade = trim((string) ($_POST['quantidade'] ?? ''));
-        $gramas     = ctype_digit($quantidade) ? (int) $quantidade : 0;
-        $erro       = '';
+        $horario = trim((string) ($_POST['horario'] ?? ''));
+        $chave   = (string) ($_POST['porcao'] ?? '');
+        $gramas  = 0;
+        $erro    = '';
 
         if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $horario)) {
             $erro = 'Informe um horário válido (HH:MM).';
-        } elseif ($gramas < 1 || $gramas > 2000) {
-            $erro = 'Informe a quantidade em gramas (de 1 a 2000).';
+        } elseif (!in_array($chave, Porcao::CHAVES, true)) {
+            $erro = 'Escolha o tamanho da porção.';
+        } else {
+            try {
+                $gramas = Porcao::doUsuario((int) $_SESSION['usuario_id'])[$chave]['gramas'];
+            } catch (PDOException $e) {
+                error_log('[alimentacao] ' . $e->getMessage());
+                $erro = 'Erro no banco de dados: ' . $e->getMessage();
+            }
         }
 
-        return [$erro, $horario, $gramas, ['horario' => $horario, 'quantidade' => $quantidade]];
+        return [$erro, $horario, $gramas, ['horario' => $horario, 'porcao' => $chave]];
+    }
+
+    /** Porções do usuário (para redesenhar o formulário). Em caso de erro de banco devolve os padrões. */
+    private function porcoesOuVazio(): array
+    {
+        try {
+            return Porcao::doUsuario((int) $_SESSION['usuario_id']);
+        } catch (PDOException $e) {
+            error_log('[alimentacao] ' . $e->getMessage());
+            return Porcao::PADROES;
+        }
+    }
+
+    // ==================================================================
+    // POST /alimentacao/porcoes  ->  o usuário troca nomes e gramas de Baixa/Média/Alta
+    // ==================================================================
+    /**
+     * O QUE ACONTECE:
+     *  - Nome: 1 a 30 caracteres. Quantidade: 1 a 500 g. Qualquer erro -> nada é salvo e volta a mensagem.
+     *  - Horários que já existem guardam os gramas de quando foram criados (não mudam sozinhos).
+     */
+    public function salvarPorcoes(): void
+    {
+        if (empty($_SESSION['usuario_id'])) {
+            header('Location: /login');
+            exit;
+        }
+
+        $dispositivoId = (int) ($_POST['dispositivo_id'] ?? 0);
+        $dados = [];
+        $ok    = true;
+        foreach (Porcao::CHAVES as $chave) {
+            $nome = trim((string) ($_POST['nome_' . $chave] ?? ''));
+            $g    = trim((string) ($_POST['gramas_' . $chave] ?? ''));
+            if ($nome === '' || mb_strlen($nome) > 30 || !ctype_digit($g) || (int) $g < 1 || (int) $g > 500) {
+                $ok = false;
+                break;
+            }
+            $dados[$chave] = [$nome, (int) $g];
+        }
+
+        $msg = 'porcoes_invalidas';
+        if ($ok) {
+            try {
+                Porcao::doUsuario((int) $_SESSION['usuario_id']);   // garante que as 3 linhas existem
+                foreach ($dados as $chave => [$nome, $g]) {
+                    Porcao::salvar((int) $_SESSION['usuario_id'], $chave, $nome, $g);
+                }
+                $msg = 'porcoes_salvas';
+            } catch (PDOException $e) {
+                error_log('[alimentacao/porcoes] ' . $e->getMessage());
+                http_response_code(500);
+                echo 'Erro no banco de dados: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8');
+                return;
+            }
+        }
+
+        header('Location: /alimentacao?dispositivo=' . $dispositivoId . '&msg=' . $msg);
+        exit;
     }
 
     private function carregarDispositivoOu404(int $id): array

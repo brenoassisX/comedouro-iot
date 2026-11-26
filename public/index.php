@@ -109,6 +109,7 @@ $rotas = [
         '/alimentacao/atualizar'  => [AlimentacaoController::class, 'atualizar'],
         '/alimentacao/excluir'    => [AlimentacaoController::class, 'excluir'],
         '/alimentacao/liberar'    => [AlimentacaoController::class, 'liberar'],
+        '/alimentacao/porcoes'    => [AlimentacaoController::class, 'salvarPorcoes'],
         '/configuracao/perfil'    => [ConfiguracaoController::class, 'salvarPerfil'],
         '/configuracao/preferencias' => [ConfiguracaoController::class, 'salvarPreferencias'],
         '/notificacoes/limpar'    => [NotificacaoController::class, 'limpar'],

@@ -19,7 +19,7 @@ class Pet
     public static function listarPorUsuario(int $usuarioId): array
     {
         $stmt = Database::getConnection()->prepare(
-            'SELECT id, nome, especie, raca, porte, idade_meses, peso_kg, foto
+            'SELECT id, nome, especie, raca, porte, idade_meses, peso_kg, preco_kg_racao, foto
                FROM pets
               WHERE usuario_id = :usuario_id
               ORDER BY nome'
@@ -33,7 +33,7 @@ class Pet
     public static function buscar(int $id, int $usuarioId): ?array
     {
         $stmt = Database::getConnection()->prepare(
-            'SELECT id, nome, especie, raca, porte, idade_meses, peso_kg, observacoes, foto, porcao_padrao_g
+            'SELECT id, nome, especie, raca, porte, idade_meses, peso_kg, preco_kg_racao, observacoes, foto, porcao_padrao_g
                FROM pets
               WHERE id = :id AND usuario_id = :usuario_id
               LIMIT 1'
@@ -49,8 +49,8 @@ class Pet
     {
         $pdo  = Database::getConnection();
         $stmt = $pdo->prepare(
-            'INSERT INTO pets (usuario_id, nome, especie, raca, porte, idade_meses, peso_kg, observacoes, foto, porcao_padrao_g)
-             VALUES (:usuario_id, :nome, :especie, :raca, :porte, :idade_meses, :peso_kg, :observacoes, :foto, :porcao)'
+            'INSERT INTO pets (usuario_id, nome, especie, raca, porte, idade_meses, peso_kg, preco_kg_racao, observacoes, foto, porcao_padrao_g)
+             VALUES (:usuario_id, :nome, :especie, :raca, :porte, :idade_meses, :peso_kg, :preco, :observacoes, :foto, :porcao)'
         );
         $stmt->execute([
             ':usuario_id'  => $usuarioId,
@@ -60,6 +60,7 @@ class Pet
             ':porte'       => $d['porte'],
             ':idade_meses' => $d['idade_meses'],
             ':peso_kg'     => $d['peso_kg'],
+            ':preco'       => $d['preco_kg_racao'],
             ':observacoes' => $d['observacoes'] !== '' ? $d['observacoes'] : null,
             ':foto'        => $d['foto'],
             ':porcao'      => $d['porcao_padrao_g'],
@@ -74,7 +75,7 @@ class Pet
         $stmt = Database::getConnection()->prepare(
             'UPDATE pets
                 SET nome = :nome, especie = :especie, raca = :raca, porte = :porte,
-                    idade_meses = :idade_meses, peso_kg = :peso_kg, observacoes = :observacoes,
+                    idade_meses = :idade_meses, peso_kg = :peso_kg, preco_kg_racao = :preco, observacoes = :observacoes,
                     foto = :foto, porcao_padrao_g = :porcao
               WHERE id = :id AND usuario_id = :usuario_id'
         );
@@ -85,6 +86,7 @@ class Pet
             ':porte'       => $d['porte'],
             ':idade_meses' => $d['idade_meses'],
             ':peso_kg'     => $d['peso_kg'],
+            ':preco'       => $d['preco_kg_racao'],
             ':observacoes' => $d['observacoes'] !== '' ? $d['observacoes'] : null,
             ':foto'        => $d['foto'],
             ':porcao'      => $d['porcao_padrao_g'],

@@ -5,14 +5,14 @@
  * Espera $titulo (opcional). Define $e() para escapar saídas.
  */
 $e      = $e ?? static fn ($v): string => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$titulo = $titulo ?? 'Comedouro Pet';
+$titulo = $titulo ?? 'PetSync';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $e($titulo) ?> | Comedouro Pet</title>
+    <title><?= $e($titulo) ?> | PetSync</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

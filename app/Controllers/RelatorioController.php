@@ -159,6 +159,14 @@ class RelatorioController
         $kgConsumido = $consumido / 1000;
         $temConsumo  = $medidas > 0;   // false = ainda sem dados da balança
 
+        // ---- Custo da ração: kg liberados x preço do kg cadastrado no pet (sem preço = sem custo) ----
+        $preco      = ($petAtual !== null && $petAtual['preco_kg_racao'] !== null) ? (float) $petAtual['preco_kg_racao'] : null;
+        $temPreco   = $preco !== null && $preco > 0;
+        $custoTotal = $temPreco ? $kgLiberado * $preco : 0.0;
+        foreach ($dias as $i => $dia) {
+            $dias[$i]['custo'] = $temPreco ? $dia['liberado'] / 1000 * $preco : 0.0;
+        }
+
         // ---- Escala do eixo vertical do gráfico ----
         $maior = max(array_column($dias, 'refeicoes') ?: [0]);
         $topo  = max(3, $maior);
@@ -187,7 +195,7 @@ class RelatorioController
             'periodo' => $periodo, 'inicio' => $inicio, 'fim' => $fim,
             'rotuloPeriodo' => $inicio->format('d/m/Y') . ' – ' . $fim->format('d/m/Y'),
             'dias' => $dias, 'total' => $total, 'kgLiberado' => $kgLiberado, 'kgConsumido' => $kgConsumido,
-            'temConsumo' => $temConsumo, 'media' => $media, 'liberado' => $liberado, 'consumido' => $consumido,
+            'temConsumo' => $temConsumo, 'preco' => $preco, 'temPreco' => $temPreco, 'custoTotal' => $custoTotal, 'media' => $media, 'liberado' => $liberado, 'consumido' => $consumido,
             'topo' => $topo, 'ticks' => $ticks, 'consulta' => $consulta,
         ];
     }
